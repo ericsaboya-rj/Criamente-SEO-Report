@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnóstico SEO Estratégico — Criamente</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0D0D0D;
+  --bg2: #141414;
+  --bg3: #1A1A1A;
+  --border: #262626;
+  --border2: #333;
+  --text: #E8E8E8;
+  --text2: #888;
+  --text3: #555;
+  --navy: #0B1F4E;
+  --blue: #1246A0;
+  --accent: #2563EB;
+  --lime: #8BFF47;
+  --lime2: #6ECC38;
+  --pass: #22C55E;
+  --warn: #F59E0B;
+  --fail: #EF4444;
+  --info: #3B82F6;
+}
+body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.55; min-height: 100vh; }
+
+/* ── INPUT ── */
+#si { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; }
+.si-logo { font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--text3); margin-bottom: 48px; }
+.si-logo span { color: var(--accent); }
+.si-title { font-size: clamp(32px, 5vw, 56px); font-weight: 800; line-height: 1.1; text-align: center; margin-bottom: 8px; }
+.si-title em { color: var(--lime); font-style: normal; }
+.si-sub { font-size: 15px; color: var(--text2); text-align: center; max-width: 480px; margin-bottom: 48px; line-height: 1.6; }
+.si-form { width: 100%; max-width: 560px; }
+.si-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.si-inp {
+  flex: 1; padding: 15px 18px; border-radius: 10px;
+  border: 1.5px solid var(--border2); background: var(--bg3);
+  color: var(--text); font-family: 'Sora', sans-serif; font-size: 14px; outline: none;
+  transition: border-color .2s;
+}
+.si-inp:focus { border-color: var(--accent); }
+.si-inp::placeholder { color: var(--text3); }
+.si-btn {
+  padding: 15px 24px; border: none; border-radius: 10px; cursor: pointer;
+  font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700;
+  color: #000; background: var(--lime); white-space: nowrap; transition: opacity .2s, transform .1s;
+}
+.si-btn:hover { opacity: .9; transform: translateY(-1px); }
+.si-btn:active { transform: translateY(0); }
+.si-note { font-size: 12px; color: var(--text3); text-align: center; }
+.err-box { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 10px; padding: 14px 18px; color: #FCA5A5; font-size: 13px; text-align: center; margin-top: 14px; }
+
+/* ── LOADING ── */
+#sl { display: none; min-height: 100vh; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 40px; }
+.ld-label { font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--text3); margin-bottom: 24px; }
+.ld-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+.ld-title em { color: var(--lime); font-style: normal; }
+.ld-status { font-size: 14px; color: var(--text2); margin-bottom: 32px; min-height: 22px; }
+.ld-bar { width: 360px; max-width: 90%; height: 3px; background: var(--border2); border-radius: 2px; overflow: hidden; margin-bottom: 32px; }
+.ld-fill { height: 100%; background: var(--lime); border-radius: 2px; width: 0; transition: width .4s ease; }
+.ld-steps { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+.ld-step { font-size: 12px; color: var(--text3); opacity: .4; transition: opacity .25s; display: flex; align-items: center; gap: 5px; }
+.ld-step.act { opacity: 1; color: var(--lime); font-weight: 600; }
+.ld-step.dn { opacity: .5; color: var(--text2); }
+
+/* ── REPORT ── */
+#sr { display: none; }
+.rpt-topbar { position: sticky; top: 0; z-index: 100; background: rgba(13,13,13,.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 40px; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; }
+.rpt-brand { font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--text3); }
+.rpt-brand span { color: var(--accent); }
+.rpt-tabs { display: flex; gap: 0; overflow-x: auto; flex: 1; margin: 0 24px; }
+.tab-btn { padding: 0 16px; height: 56px; border: none; background: none; cursor: pointer; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 500; color: var(--text3); white-space: nowrap; border-bottom: 2px solid transparent; transition: color .2s, border-color .2s; }
+.tab-btn:hover { color: var(--text2); }
+.tab-btn.act { color: var(--lime); border-bottom-color: var(--lime); }
+.rpt-acts { display: flex; gap: 8px; flex-shrink: 0; }
+.btn-new { padding: 7px 14px; border: 1px solid var(--border2); border-radius: 7px; background: none; cursor: pointer; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 500; color: var(--text2); transition: border-color .2s, color .2s; }
+.btn-new:hover { border-color: var(--accent); color: var(--accent); }
+.btn-pdf { padding: 7px 14px; border: none; border-radius: 7px; background: var(--lime); cursor: pointer; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700; color: #000; transition: opacity .2s; }
+.btn-pdf:hover { opacity: .85; }
+
+/* Report Content */
+.rpt-body { max-width: 1100px; margin: 0 auto; padding: 48px 40px 80px; }
+
+/* Hero */
+.rpt-hero { margin-bottom: 48px; }
+.rpt-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+.rpt-domain { font-size: clamp(13px, 2vw, 17px); color: var(--text2); margin-bottom: 16px; }
+.rpt-h1 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; line-height: 1.15; margin-bottom: 6px; }
+.rpt-h1 em { color: var(--lime); font-style: normal; }
+.rpt-segmento { font-size: 13px; color: var(--text3); }
+
+/* KPI Cards */
+.kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 32px; }
+.kpi-card { background: var(--bg2); padding: 20px 18px; }
+.kpi-nm { font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+.kpi-val { font-size: 26px; font-weight: 800; line-height: 1; margin-bottom: 5px; }
+.kpi-sub { font-size: 11px; color: var(--text3); }
+.kpi-ok { color: var(--pass); }
+.kpi-warn { color: var(--warn); }
+.kpi-fail { color: var(--fail); }
+.kpi-blue { color: var(--accent); }
+
+/* Diagnosis Box */
+.diag-box { background: var(--bg2); border: 1px solid var(--border2); border-left: 3px solid var(--lime); border-radius: 10px; padding: 20px 24px; margin-bottom: 32px; }
+.diag-label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--lime); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.diag-text { font-size: 14px; color: var(--text); line-height: 1.65; }
+.diag-text strong { color: white; }
+
+/* Metrics grid */
+.met-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 40px; }
+.met-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.met-nm { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+.met-status { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.met-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot-ok { background: var(--pass); }
+.dot-warn { background: var(--warn); }
+.dot-fail { background: var(--fail); }
+.met-lbl { font-size: 12px; font-weight: 600; }
+.lbl-ok { color: var(--pass); }
+.lbl-warn { color: var(--warn); }
+.lbl-fail { color: var(--fail); }
+.met-txt { font-size: 11.5px; color: var(--text2); line-height: 1.45; }
+
+/* Tab sections */
+.tab-section { display: none; }
+.tab-section.act { display: block; }
+
+/* Numbered actions */
+.action-block { margin-bottom: 40px; }
+.action-num { font-size: clamp(64px, 8vw, 100px); font-weight: 800; color: var(--border2); line-height: 1; margin-bottom: 4px; }
+.action-cat { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; }
+.cat-critico { color: var(--fail); }
+.cat-alto { color: var(--warn); }
+.cat-medio { color: var(--info); }
+.action-title { font-size: clamp(20px, 3vw, 28px); font-weight: 800; margin-bottom: 24px; line-height: 1.2; }
+.action-title em { color: var(--lime); font-style: normal; }
+.action-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.action-col { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; }
+.action-col-lbl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
+.lbl-problema { color: #F87171; }
+.lbl-rec { color: var(--lime2); }
+.action-col-txt { font-size: 13px; color: var(--text); line-height: 1.65; }
+.action-col-txt strong { color: white; }
+.action-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.tag { padding: 4px 12px; border-radius: 5px; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.tag-impacto { background: rgba(139,255,71,.12); color: var(--lime); border: 1px solid rgba(139,255,71,.25); }
+.tag-esforco-baixo { background: rgba(34,197,94,.12); color: var(--pass); border: 1px solid rgba(34,197,94,.25); }
+.tag-esforco-medio { background: rgba(245,158,11,.12); color: var(--warn); border: 1px solid rgba(245,158,11,.25); }
+.tag-esforco-alto { background: rgba(239,68,68,.12); color: var(--fail); border: 1px solid rgba(239,68,68,.25); }
+.tag-prazo { background: rgba(59,130,246,.12); color: var(--info); border: 1px solid rgba(59,130,246,.25); }
+
+/* Tables */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+.data-table th { text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.data-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--bg3); }
+.badge { padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.badge-comercial { background: rgba(239,68,68,.15); color: #FCA5A5; border: 1px solid rgba(239,68,68,.3); }
+.badge-informacional { background: rgba(59,130,246,.15); color: #93C5FD; border: 1px solid rgba(59,130,246,.3); }
+.badge-transacional { background: rgba(139,255,71,.15); color: var(--lime); border: 1px solid rgba(139,255,71,.3); }
+.badge-bofu { background: rgba(245,158,11,.15); color: #FCD34D; border: 1px solid rgba(245,158,11,.3); }
+.badge-alto { background: rgba(239,68,68,.15); color: #FCA5A5; border: 1px solid rgba(239,68,68,.3); }
+.badge-medio { background: rgba(245,158,11,.15); color: #FCD34D; border: 1px solid rgba(245,158,11,.3); }
+.badge-baixo { background: rgba(156,163,175,.15); color: #9CA3AF; border: 1px solid rgba(156,163,175,.3); }
+.badge-low { background: rgba(34,197,94,.12); color: var(--pass); border: 1px solid rgba(34,197,94,.25); }
+
+/* Section headers */
+.sec-header { margin-bottom: 24px; }
+.sec-header h2 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.sec-header h2 em { color: var(--lime); font-style: normal; }
+.sec-header p { font-size: 13px; color: var(--text2); }
+
+/* Competitor cards */
+.comp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.comp-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.comp-name { font-size: 15px; font-weight: 700; color: white; margin-bottom: 4px; }
+.comp-url { font-size: 11px; color: var(--accent); margin-bottom: 12px; font-family: monospace; }
+.comp-angle { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+/* Next step box */
+.next-box { background: linear-gradient(135deg, rgba(37,99,235,.15), rgba(139,255,71,.08)); border: 1px solid rgba(37,99,235,.3); border-radius: 12px; padding: 24px 28px; margin-top: 32px; }
+.next-label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.next-text { font-size: 14px; color: var(--text); line-height: 1.6; }
+.next-text strong { color: white; }
+
+/* Schema table */
+.schema-table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+
+/* Footer */
+.rpt-footer { text-align: center; padding: 24px; font-size: 11px; color: var(--text3); border-top: 1px solid var(--border); margin-top: 60px; }
+
+/* Print */
+@media print {
+  @page { size: A4; margin: 10mm; }
+  .rpt-topbar { display: none !important; }
+  #si, #sl { display: none !important; }
+  #sr { display: block !important; }
+  .tab-section { display: block !important; break-inside: avoid; }
+  body { background: white; color: #111; }
+  .rpt-hero .rpt-h1, .rpt-hero .rpt-h1 em { color: #000 !important; }
+  .kpi-grid, .met-grid, .action-cols, .comp-grid { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- INPUT -->
+<div id="si">
+  <div class="si-logo">CRIAMENTE · <span>Diagnóstico SEO Estratégico</span></div>
+  <h1 class="si-title">SEO <em>Revenue</em><br>Opportunities</h1>
+  <p class="si-sub">Análise estratégica completa gerada por IA. Diagnóstico, plano de ação, oportunidades de keywords, schemas e concorrentes orgânicos.</p>
+  <div class="si-form">
+    <div class="si-row">
+      <input type="url" id="urlInput" class="si-inp" placeholder="https://seusite.com.br" autocomplete="off">
+      <button class="si-btn" onclick="startAudit()">Analisar</button>
+    </div>
+    <p class="si-note">A análise usa IA e pode levar até 40 segundos. Funciona apenas com URLs públicas.</p>
+    <div id="errBox"></div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="sl">
+  <div class="ld-label">Criamente · Auditoria em andamento</div>
+  <h2 class="ld-title">Analisando <em>seu site</em></h2>
+  <div id="ldStatus" class="ld-status">Iniciando...</div>
+  <div class="ld-bar"><div class="ld-fill" id="ldFill"></div></div>
+  <div class="ld-steps">
+    <div class="ld-step" id="st1">📥 Buscando HTML</div>
+    <div class="ld-step" id="st2">🔍 Extraindo dados</div>
+    <div class="ld-step" id="st3">🤖 IA analisando</div>
+    <div class="ld-step" id="st4">📊 Gerando relatório</div>
+  </div>
+</div>
+
+<!-- REPORT -->
+<div id="sr">
+  <div class="rpt-topbar">
+    <div class="rpt-brand">CRIAMENTE · <span>SEO</span></div>
+    <div class="rpt-tabs" id="rptTabs"></div>
+    <div class="rpt-acts">
+      <button class="btn-new" onclick="resetTool()">← Nova análise</button>
+      <button class="btn-pdf" onclick="window.print()">⬇ PDF</button>
+    </div>
+  </div>
+  <div class="rpt-body" id="rptBody"></div>
+  <div class="rpt-footer">Criamente · Diagnóstico SEO Estratégico · criamente.com</div>
+</div>
+
+<script>
+let currentTab = 0;
+
+function setP(pct, msg, sid) {
+  document.getElementById('ldFill').style.width = pct + '%';
+  if (msg) document.getElementById('ldStatus').textContent = msg;
+  const order = ['st1','st2','st3','st4'];
+  if (sid) document.querySelectorAll('.ld-step').forEach(el => {
+    const i = order.indexOf(el.id), c = order.indexOf(sid);
+    el.classList.remove('act','dn');
+    if (i === c) el.classList.add('act');
+    else if (i < c) el.classList.add('dn');
+  });
+}
+
+function badgeIntent(i) {
+  const m = {'Informacional':'informacional','Comercial':'comercial','Transacional':'transacional','BOFU':'bofu'};
+  return `<span class="badge badge-${m[i]||'informacional'}">${i}</span>`;
+}
+function badgePot(p) {
+  const m = {'Alto':'alto','Médio':'medio','Baixo':'baixo'};
+  return `<span class="badge badge-${m[p]||'medio'}">${p}</span>`;
+}
+function badgeEsforco(e) {
+  const m = {'Baixo':'baixo','Médio':'medio','Alto':'alto'};
+  return `<span class="badge badge-esforco-${(m[e]||'medio').toLowerCase()}">${e}</span>`;
+}
+function statusDot(s) {
+  const m = {'ok':'ok','alerta':'warn','critico':'fail'};
+  return m[s] || 'warn';
+}
+function statusLabel(s) {
+  return {'ok':'OK','alerta':'Atenção','critico':'Crítico'}[s] || s;
+}
+function catClass(p) {
+  return {'Crítico':'critico','Alto':'alto','Médio':'medio'}[p] || 'medio';
+}
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function boldKeywords(text) {
+  // Bold text between ** **
+  return escHtml(text).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+function highlightKeywords(text) {
+  // Wrap quoted text or /paths/ with em
+  return boldKeywords(text)
+    .replace(/\/[a-zA-Z0-9\/_-]+\//g, m => `<code style="background:rgba(255,255,255,.07);padding:1px 5px;border-radius:3px;font-size:12px">${m}</code>`);
+}
+
+function buildReport(r) {
+  const d = r;
+  const score = d.score_estimado || 0;
+  const scoreColor = score >= 70 ? 'kpi-ok' : score >= 50 ? 'kpi-warn' : 'kpi-fail';
+  const nivelColor = {'Excelente':'kpi-ok','Bom':'kpi-ok','Regular':'kpi-warn','Crítico':'kpi-fail'}[d.nivel_seo] || 'kpi-warn';
+  const m = d.metricas || {};
+  const td = d.dadosTecnicos || {};
+
+  // ── TABS ──
+  const tabs = ['Diagnóstico','Plano de Ação','Keywords','Schema & GEO','Concorrentes'];
+  document.getElementById('rptTabs').innerHTML = tabs.map((t,i) =>
+    `<button class="tab-btn${i===0?' act':''}" onclick="switchTab(${i})">${t}</button>`
+  ).join('');
+
+  // ── BODY ──
+  const metricsHtml = Object.entries({
+    'Título': m.titulo,
+    'Description': m.description,
+    'Headings': m.headings,
+    'Conteúdo': m.conteudo,
+    'Schema': m.schema,
+    'Open Graph': m.open_graph,
+    'Técnico': m.tecnico,
+    'GEO / IA': m.geo_ia
+  }).map(([nm, v]) => v ? `
+  <div class="met-card">
+    <div class="met-nm">${nm}</div>
+    <div class="met-status">
+      <div class="met-dot dot-${statusDot(v.status)}"></div>
+      <div class="met-lbl lbl-${statusDot(v.status)}">${statusLabel(v.status)}</div>
+    </div>
+    <div class="met-txt">${escHtml(v.texto)}</div>
+  </div>` : '').join('');
+
+  const actionsHtml = (d.acoes || []).map(a => `
+  <div class="action-block">
+    <div class="action-num">0${a.numero}</div>
+    <div class="action-cat cat-${catClass(a.prioridade)}">${a.prioridade.toUpperCase()} · ${escHtml(a.categoria)}</div>
+    <div class="action-title">${highlightKeywords(a.titulo)}</div>
+    <div class="action-cols">
+      <div class="action-col">
+        <div class="action-col-lbl lbl-problema">O Problema</div>
+        <div class="action-col-txt">${highlightKeywords(a.problema)}</div>
+      </div>
+      <div class="action-col">
+        <div class="action-col-lbl lbl-rec">Recomendação</div>
+        <div class="action-col-txt">${highlightKeywords(a.recomendacao)}</div>
+      </div>
+    </div>
+    <div class="action-tags">
+      <span class="tag tag-impacto">Impacto: ${escHtml(a.impacto)}</span>
+      <span class="tag ${`tag-esforco-${(a.esforco||'').toLowerCase()}`}">Esforço: ${a.esforco}</span>
+      <span class="tag tag-prazo">Prazo: ${escHtml(a.prazo)}</span>
+    </div>
+  </div>`).join('<hr style="border:none;border-top:1px solid var(--border);margin:0 0 40px">');
+
+  const kwHtml = (d.oportunidades_keywords || []).map(k => `
+  <tr>
+    <td style="font-weight:500;font-family:monospace;font-size:12px">${escHtml(k.keyword)}</td>
+    <td>${badgeIntent(k.intencao)}</td>
+    <td>${badgePot(k.potencial)}</td>
+    <td style="color:var(--text2);font-size:12px;font-family:monospace">${escHtml(k.pagina_sugerida)}</td>
+  </tr>`).join('');
+
+  const schemaHtml = (d.schema_recomendados || []).map(s => `
+  <tr>
+    <td style="font-weight:600;font-family:monospace;font-size:12px">${escHtml(s.tipo)}</td>
+    <td style="color:var(--text2);font-size:12px">${escHtml(s.pagina)}</td>
+    <td style="color:var(--text);font-size:12px">${escHtml(s.impacto)}</td>
+    <td>${badgeEsforco(s.esforco)}</td>
+  </tr>`).join('');
+
+  const compHtml = (d.concorrentes_organicos || []).map(c => `
+  <div class="comp-card">
+    <div class="comp-name">${escHtml(c.nome)}</div>
+    <div class="comp-url">${escHtml(c.url)}</div>
+    <div class="comp-angle">${escHtml(c.angulo)}</div>
+  </div>`).join('');
+
+  document.getElementById('rptBody').innerHTML = `
+    <!-- HERO -->
+    <div class="rpt-hero">
+      <div class="rpt-eyebrow">Criamente · Diagnóstico SEO Estratégico · ${escHtml(d.geradoEm)}</div>
+      <div class="rpt-domain">${escHtml(d.url)}</div>
+      <h1 class="rpt-h1">SEO <em>Revenue</em><br>Opportunities</h1>
+      <div class="rpt-segmento">${escHtml(d.segmento)}</div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-nm">Score Geral</div>
+        <div class="kpi-val ${scoreColor}">${score}</div>
+        <div class="kpi-sub">${d.nivel_seo}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-nm">HTTPS</div>
+        <div class="kpi-val ${td.https?'kpi-ok':'kpi-fail'}">${td.https?'Sim':'Não'}</div>
+        <div class="kpi-sub">${td.https?'Seguro':'Sem SSL'}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-nm">JSON-LD</div>
+        <div class="kpi-val ${td.hasJsonLd?'kpi-ok':'kpi-fail'}">${td.hasJsonLd?'Sim':'Não'}</div>
+        <div class="kpi-sub">${td.hasJsonLd?'Schema presente':'Ausente'}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-nm">Palavras</div>
+        <div class="kpi-val ${(td.wordCount||0)>=400?'kpi-ok':(td.wordCount||0)>=200?'kpi-warn':'kpi-fail'}">~${td.wordCount||0}</div>
+        <div class="kpi-sub">volume estimado</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-nm">Imagens s/ Alt</div>
+        <div class="kpi-val ${(td.imgsNoAlt||0)===0?'kpi-ok':(td.imgsNoAlt||0)<=3?'kpi-warn':'kpi-fail'}">${td.imgsNoAlt||0}</div>
+        <div class="kpi-sub">de ${td.imgs||0} imagens</div>
+      </div>
+    </div>
+
+    <!-- TAB 0: DIAGNÓSTICO -->
+    <div class="tab-section act" id="tab0">
+      <div class="diag-box">
+        <div class="diag-label">⚡ Diagnóstico geral</div>
+        <div class="diag-text">${highlightKeywords(d.resumo_executivo)}</div>
+      </div>
+      <div class="met-grid">${metricsHtml}</div>
+      <div class="next-box">
+        <div class="next-label">Próximo passo imediato</div>
+        <div class="next-text">${highlightKeywords(d.proximo_passo_imediato)}</div>
+      </div>
+    </div>
+
+    <!-- TAB 1: PLANO DE AÇÃO -->
+    <div class="tab-section" id="tab1">
+      <div class="sec-header">
+        <h2>Plano de <em>Ação</em></h2>
+        <p>Ações priorizadas por impacto e urgência, baseadas na análise do site.</p>
+      </div>
+      ${actionsHtml}
+    </div>
+
+    <!-- TAB 2: KEYWORDS -->
+    <div class="tab-section" id="tab2">
+      <div class="sec-header">
+        <h2>Oportunidades de <em>Keywords</em></h2>
+        <p>Termos com potencial de tráfego orgânico identificados a partir do segmento e conteúdo do site.</p>
+      </div>
+      <div class="schema-table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Keyword</th><th>Intenção</th><th>Potencial</th><th>Página Sugerida</th></tr></thead>
+          <tbody>${kwHtml}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: SCHEMA & GEO -->
+    <div class="tab-section" id="tab3">
+      <div class="sec-header">
+        <h2>Schema Markup & <em>GEO</em></h2>
+        <p>Dados estruturados recomendados para aumentar visibilidade em resultados ricos e citações por IAs generativas.</p>
+      </div>
+      <div class="schema-table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Tipo de Schema</th><th>Aplicar em</th><th>Impacto Esperado</th><th>Esforço</th></tr></thead>
+          <tbody>${schemaHtml}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: CONCORRENTES -->
+    <div class="tab-section" id="tab4">
+      <div class="sec-header">
+        <h2>Concorrentes <em>Orgânicos</em></h2>
+        <p>Sites que disputam os mesmos termos de busca com base no segmento identificado.</p>
+      </div>
+      <div class="comp-grid">${compHtml}</div>
+    </div>
+  `;
+}
+
+function switchTab(idx) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('act', i===idx));
+  document.querySelectorAll('.tab-section').forEach((s,i) => s.classList.toggle('act', i===idx));
+  currentTab = idx;
+}
+
+async function startAudit() {
+  let url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+  if (!url.startsWith('http')) url = 'https://' + url;
+
+  document.getElementById('si').style.display = 'none';
+  document.getElementById('sl').style.display = 'flex';
+
+  try {
+    setP(15, 'Buscando HTML do site...', 'st1');
+    await new Promise(r => setTimeout(r, 400));
+    setP(35, 'Extraindo dados SEO...', 'st2');
+    await new Promise(r => setTimeout(r, 400));
+    setP(55, 'IA analisando conteúdo e segmento...', 'st3');
+
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+
+    setP(80, 'Gerando relatório estratégico...', 'st4');
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error || 'Erro na análise');
+
+    setP(100, 'Concluído!', 'st4');
+    await new Promise(r => setTimeout(r, 400));
+
+    document.getElementById('sl').style.display = 'none';
+    document.getElementById('sr').style.display = 'block';
+    buildReport(data.report);
+
+  } catch(err) {
+    document.getElementById('sl').style.display = 'none';
+    document.getElementById('si').style.display = 'flex';
+    document.getElementById('errBox').innerHTML = `<div class="err-box">${err.message}</div>`;
+    setTimeout(() => { document.getElementById('errBox').innerHTML = ''; }, 7000);
+  }
+}
+
+function resetTool() {
+  document.getElementById('sr').style.display = 'none';
+  document.getElementById('si').style.display = 'flex';
+  document.getElementById('urlInput').value = '';
+  document.getElementById('ldFill').style.width = '0%';
+  document.querySelectorAll('.ld-step').forEach(el => el.classList.remove('act','dn'));
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e => { if(e.key==='Enter') startAudit(); });
+</script>
+</body>
+</html>
