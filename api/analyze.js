@@ -156,10 +156,10 @@ async function callAI(seoData) {
       generationConfig: {
         temperature: 0.2,
         maxOutputTokens: 4000,
-        responseMimeType: 'application/json'
-      },
-      thinkingConfig: {
-        thinkingBudget: 0
+        responseMimeType: 'application/json',
+        thinkingConfig: {
+          thinkingBudget: 0
+        }
       }
     })
   });
