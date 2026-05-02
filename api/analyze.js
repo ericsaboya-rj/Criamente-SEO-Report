@@ -66,10 +66,20 @@ function extractSEO(html, url) {
 }
 
 function repairAndParseJSON(text) {
-  var start = text.indexOf('{');
-  var end = text.lastIndexOf('}');
+  var clean = text.trim();
+
+  // Remove wrapper markdown ```json ... ``` ou ``` ... ```
+  var mdMatch = clean.match(/```json\s*([\s\S]*?)```/);
+  if (mdMatch) { clean = mdMatch[1].trim(); }
+  else {
+    var mdMatch2 = clean.match(/```\s*([\s\S]*?)```/);
+    if (mdMatch2) { clean = mdMatch2[1].trim(); }
+  }
+
+  var start = clean.indexOf('{');
+  var end = clean.lastIndexOf('}');
   if (start === -1 || end === -1) throw new Error('Nenhum JSON encontrado. Resposta: ' + text.substring(0, 300));
-  var json = text.substring(start, end + 1);
+  var json = clean.substring(start, end + 1);
 
   // Tenta direto primeiro
   try { return JSON.parse(json); } catch(e) {}
@@ -91,7 +101,7 @@ function repairAndParseJSON(text) {
   }
 
   try { return JSON.parse(fixed); } catch(e2) {
-    throw new Error('JSON invalido apos reparo: ' + e2.message + ' | Trecho pos ' + Math.max(0, e2.message.match(/\d+/) ? parseInt(e2.message.match(/\d+/)[0]) - 50 : 0) + ': ' + fixed.substring(2880, 2960));
+    throw new Error('JSON invalido: ' + e2.message + ' | Trecho: ' + fixed.substring(2880, 2960));
   }
 }
 
