@@ -68,7 +68,7 @@ function extractSEO(html, url) {
 function repairAndParseJSON(text) {
   var clean = text.trim();
 
-  // Remove wrapper markdown ```json ... ``` ou ``` ... ```
+  // Remove wrapper markdown
   var mdMatch = clean.match(/```json\s*([\s\S]*?)```/);
   if (mdMatch) { clean = mdMatch[1].trim(); }
   else {
@@ -84,7 +84,7 @@ function repairAndParseJSON(text) {
   // Tenta direto primeiro
   try { return JSON.parse(json); } catch(e) {}
 
-  // Repara caracteres invalidos dentro de strings
+  // Reparo nivel 1: normaliza chars invalidos dentro de strings
   var fixed = '';
   var inString = false;
   var escape = false;
@@ -96,12 +96,19 @@ function repairAndParseJSON(text) {
     if (inString) {
       if (ch === '\n' || ch === '\r') { fixed += ' '; continue; }
       if (ch === '\t') { fixed += ' '; continue; }
+      // Remove outros chars de controle
+      var code = ch.charCodeAt(0);
+      if (code < 32) { continue; }
     }
     fixed += ch;
   }
 
   try { return JSON.parse(fixed); } catch(e2) {
-    throw new Error('JSON invalido: ' + e2.message + ' | Trecho: ' + fixed.substring(2880, 2960));
+    // Reparo nivel 2: remove trailing commas antes de } ou ]
+    var fixed2 = fixed.replace(/,\s*([}\]])/g, '$1');
+    try { return JSON.parse(fixed2); } catch(e3) {
+      throw new Error('JSON invalido: ' + e3.message + ' | Trecho pos 2580: ' + fixed2.substring(2580, 2650));
+    }
   }
 }
 
@@ -148,7 +155,11 @@ async function callAI(seoData) {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 4000
+        maxOutputTokens: 4000,
+        responseMimeType: 'application/json'
+      },
+      thinkingConfig: {
+        thinkingBudget: 0
       }
     })
   });
