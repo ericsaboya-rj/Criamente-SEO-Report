@@ -1,17 +1,41 @@
 async function fetchHTML(url) {
-  var response = await fetch(url, {
-    signal: AbortSignal.timeout(25000),
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; CriamenteSEOBot/1.0)',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-      'Cache-Control': 'no-cache'
+  var lastErr = '';
+  var userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+    'Mozilla/5.0 (compatible; CriamenteSEOBot/1.0)'
+  ];
+
+  for (var ua of userAgents) {
+    try {
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 28000);
+      var response = await fetch(url, {
+        signal: controller.signal,
+        redirect: 'follow',
+        headers: {
+          'User-Agent': ua,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
+        }
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) { lastErr = 'HTTP ' + response.status; continue; }
+      var text = await response.text();
+      if (text.length < 100) { lastErr = 'Pagina vazia'; continue; }
+      return text;
+    } catch(e) {
+      clearTimeout(timeoutId);
+      lastErr = e.message || String(e);
+      continue;
     }
-  });
-  if (!response.ok) throw new Error('Site retornou HTTP ' + response.status);
-  var text = await response.text();
-  if (text.length < 100) throw new Error('Pagina retornou conteudo vazio.');
-  return text;
+  }
+  throw new Error('Nao foi possivel acessar o site. Erro: ' + lastErr + '. Verifique se a URL e publica e tente novamente.');
 }
 
 function extractSEO(html, url) {
