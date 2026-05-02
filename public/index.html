@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Diagnóstico SEO Estratégico — Criamente</title>
+<link rel="icon" type="image/png" href="https://criamente.com/wp-content/uploads/2026/03/android-chrome-512x512-1-300x300.png">
+<link rel="apple-touch-icon" href="https://criamente.com/wp-content/uploads/2026/03/android-chrome-512x512-1-300x300.png">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,7 +35,7 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 .si-logo { font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--text3); margin-bottom: 48px; }
 .si-logo span { color: var(--accent); }
 .si-title { font-size: clamp(32px, 5vw, 56px); font-weight: 800; line-height: 1.1; text-align: center; margin-bottom: 8px; }
-.si-title em { color: var(--lime); font-style: normal; }
+.si-title em { color: var(--accent); font-style: normal; }
 .si-sub { font-size: 15px; color: var(--text2); text-align: center; max-width: 480px; margin-bottom: 48px; line-height: 1.6; }
 .si-form { width: 100%; max-width: 560px; }
 .si-row { display: flex; gap: 8px; margin-bottom: 12px; }
@@ -59,7 +61,7 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 #sl { display: none; min-height: 100vh; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 40px; }
 .ld-label { font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--text3); margin-bottom: 24px; }
 .ld-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
-.ld-title em { color: var(--lime); font-style: normal; }
+.ld-title em { color: var(--accent); font-style: normal; }
 .ld-status { font-size: 14px; color: var(--text2); margin-bottom: 32px; min-height: 22px; }
 .ld-bar { width: 360px; max-width: 90%; height: 3px; background: var(--border2); border-radius: 2px; overflow: hidden; margin-bottom: 32px; }
 .ld-fill { height: 100%; background: var(--lime); border-radius: 2px; width: 0; transition: width .4s ease; }
@@ -91,7 +93,7 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 .rpt-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
 .rpt-domain { font-size: clamp(13px, 2vw, 17px); color: var(--text2); margin-bottom: 16px; }
 .rpt-h1 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; line-height: 1.15; margin-bottom: 6px; }
-.rpt-h1 em { color: var(--lime); font-style: normal; }
+.rpt-h1 em { color: var(--accent); font-style: normal; }
 .rpt-segmento { font-size: 13px; color: var(--text3); }
 
 /* KPI Cards */
@@ -138,7 +140,7 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 .cat-alto { color: var(--warn); }
 .cat-medio { color: var(--info); }
 .action-title { font-size: clamp(20px, 3vw, 28px); font-weight: 800; margin-bottom: 24px; line-height: 1.2; }
-.action-title em { color: var(--lime); font-style: normal; }
+.action-title em { color: var(--accent); font-style: normal; }
 .action-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .action-col { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; }
 .action-col-lbl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
@@ -173,7 +175,7 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 /* Section headers */
 .sec-header { margin-bottom: 24px; }
 .sec-header h2 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
-.sec-header h2 em { color: var(--lime); font-style: normal; }
+.sec-header h2 em { color: var(--accent); font-style: normal; }
 .sec-header p { font-size: 13px; color: var(--text2); }
 
 /* Competitor cards */
@@ -197,14 +199,124 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 
 /* Print */
 @media print {
-  @page { size: A4; margin: 10mm; }
+  @page { size: A4; margin: 12mm 10mm; }
   .rpt-topbar { display: none !important; }
   #si, #sl { display: none !important; }
   #sr { display: block !important; }
-  .tab-section { display: block !important; break-inside: avoid; }
-  body { background: white; color: #111; }
-  .rpt-hero .rpt-h1, .rpt-hero .rpt-h1 em { color: #000 !important; }
-  .kpi-grid, .met-grid, .action-cols, .comp-grid { break-inside: avoid; }
+
+  /* Todas as abas visíveis no PDF */
+  .tab-section { display: block !important; }
+
+  body { background: white !important; color: #111 !important; }
+
+  /* Hero */
+  .rpt-hero { margin-bottom: 24px; }
+  .rpt-h1 { color: #0B1F4E !important; }
+  .rpt-h1 em { color: #2563EB !important; }
+  .rpt-eyebrow, .rpt-domain, .rpt-segmento { color: #555 !important; }
+
+  /* Header do relatório — preserva gradiente */
+  .rpt-header {
+    background: #0B1F4E !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color: white !important;
+    border-radius: 10px;
+    margin-bottom: 16px;
+  }
+  .rpt-header * { color: white !important; }
+
+  /* KPI grid */
+  .kpi-grid {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .kpi-card { background: #F4F7FF !important; }
+
+  /* Cards de métricas */
+  .met-grid { break-inside: avoid; page-break-inside: avoid; }
+  .met-card { background: #F4F7FF !important; border: 1px solid #DDE5F5 !important; }
+
+  /* Diagnosis box */
+  .diag-box {
+    background: #F4F7FF !important;
+    border-left: 3px solid #2563EB !important;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .diag-label { color: #2563EB !important; }
+  .diag-text { color: #111 !important; }
+
+  /* Ações */
+  .action-block { break-inside: avoid; page-break-inside: avoid; margin-bottom: 24px; }
+  .action-cols { break-inside: avoid; page-break-inside: avoid; }
+  .action-col { background: #F4F7FF !important; border: 1px solid #DDE5F5 !important; }
+  .action-col-txt { color: #111 !important; }
+  .action-num { color: #DDE5F5 !important; }
+  .cat-critico { color: #DC2626 !important; }
+  .cat-alto { color: #D97706 !important; }
+  .cat-medio { color: #2563EB !important; }
+  .lbl-problema { color: #DC2626 !important; }
+  .lbl-rec { color: #059669 !important; }
+
+  /* Tags */
+  .tag {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .tag-impacto { background: #EFF6FF !important; color: #2563EB !important; border-color: #BFDBFE !important; }
+  .tag-esforco-baixo { background: #ECFDF5 !important; color: #059669 !important; border-color: #A7F3D0 !important; }
+  .tag-esforco-medio { background: #FFFBEB !important; color: #D97706 !important; border-color: #FDE68A !important; }
+  .tag-esforco-alto { background: #FEF2F2 !important; color: #DC2626 !important; border-color: #FECACA !important; }
+  .tag-prazo { background: #EFF6FF !important; color: #2563EB !important; border-color: #BFDBFE !important; }
+
+  /* Separadores entre ações */
+  hr { border-color: #DDE5F5 !important; }
+
+  /* Tabelas */
+  .schema-table-wrap { background: white !important; border: 1px solid #DDE5F5 !important; }
+  .data-table th { color: #555 !important; border-color: #DDE5F5 !important; }
+  .data-table td { color: #111 !important; border-color: #DDE5F5 !important; }
+  .data-table tr:hover td { background: none !important; }
+
+  /* Badges */
+  .badge {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .badge-comercial { background: #FEF2F2 !important; color: #DC2626 !important; border-color: #FECACA !important; }
+  .badge-informacional { background: #EFF6FF !important; color: #2563EB !important; border-color: #BFDBFE !important; }
+  .badge-transacional { background: #ECFDF5 !important; color: #059669 !important; border-color: #A7F3D0 !important; }
+  .badge-bofu { background: #FFFBEB !important; color: #D97706 !important; border-color: #FDE68A !important; }
+  .badge-alto { background: #FEF2F2 !important; color: #DC2626 !important; border-color: #FECACA !important; }
+  .badge-medio { background: #FFFBEB !important; color: #D97706 !important; border-color: #FDE68A !important; }
+  .badge-baixo { background: #F3F4F6 !important; color: #6B7280 !important; border-color: #E5E7EB !important; }
+
+  /* Cabeçalhos de seção */
+  .sec-header h2 { color: #0B1F4E !important; }
+  .sec-header h2 em { color: #2563EB !important; }
+  .sec-header p { color: #555 !important; }
+
+  /* Concorrentes */
+  .comp-grid { break-inside: avoid; page-break-inside: avoid; }
+  .comp-card { background: #F4F7FF !important; border: 1px solid #DDE5F5 !important; }
+  .comp-name { color: #0B1F4E !important; }
+  .comp-angle { color: #555 !important; }
+
+  /* Next step box */
+  .next-box { background: #EFF6FF !important; border-color: #BFDBFE !important; break-inside: avoid; }
+  .next-label { color: #2563EB !important; }
+  .next-text { color: #111 !important; }
+
+  /* Footer */
+  .rpt-footer { color: #999 !important; border-color: #DDE5F5 !important; }
+
+  /* Evita páginas em branco */
+  .rpt-body { padding: 0 !important; }
+  .tab-section { margin-bottom: 0 !important; }
 }
 </style>
 </head>
