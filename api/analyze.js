@@ -1,4 +1,8 @@
-var kv = require('@vercel/kv');
+var Redis = require('@upstash/redis').Redis;
+var kv = new Redis({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN
+});
 
 function generateId() {
   var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';

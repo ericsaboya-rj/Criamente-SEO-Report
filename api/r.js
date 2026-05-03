@@ -1,4 +1,8 @@
-var kv = require('@vercel/kv');
+var Redis = require('@upstash/redis').Redis;
+var kv = new Redis({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN
+});
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
