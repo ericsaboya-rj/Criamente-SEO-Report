@@ -533,6 +533,16 @@ function resetTool() {
 }
 
 document.getElementById('urlInput').addEventListener('keydown', e => { if(e.key==='Enter') startAudit(); });
+
+// Auto-inicia se URL passada como parametro: ?url=https://site.com.br
+document.addEventListener('DOMContentLoaded', function() {
+  var params = new URLSearchParams(window.location.search);
+  var urlParam = params.get('url');
+  if (urlParam) {
+    document.getElementById('urlInput').value = urlParam;
+    startAudit();
+  }
+});
 </script>
 </body>
 </html>
