@@ -64,6 +64,10 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 .btn-new:hover { border-color: var(--accent); color: var(--accent); }
 .btn-pdf { padding: 7px 14px; border: none; border-radius: 7px; background: var(--accent); cursor: pointer; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700; color: #fff; transition: opacity .2s; }
 .btn-pdf:hover { opacity: .85; }
+.btn-link { padding: 7px 14px; border: 1px solid var(--accent); border-radius: 7px; background: none; cursor: pointer; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700; color: var(--accent); transition: background .2s, color .2s; }
+.btn-link:hover { background: var(--accent); color: #fff; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 9999; }
+.toast.show { opacity: 1; }
 
 /* Report Content */
 .rpt-body { max-width: 1100px; margin: 0 auto; padding: 48px 40px 80px; }
@@ -266,6 +270,7 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
     <nav class="rpt-tabs" id="rptTabs"></nav>
     <div class="rpt-acts">
       <button class="btn-new" onclick="resetTool()">&larr; Nova an&aacute;lise</button>
+      <button class="btn-link" id="btnLink" onclick="copyReportLink()" style="display:none">&#x1F517; Copiar link</button>
       <button class="btn-pdf" onclick="window.print()">&darr; PDF</button>
     </div>
   </div>
@@ -273,7 +278,22 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
   <div class="rpt-footer">Criamente &middot; Diagn&oacute;stico SEO Estrat&eacute;gico &middot; criamente.com</div>
 </div>
 
+<div class="toast" id="toast">Link copiado!</div>
 <script>
+var currentReportId = null;
+
+function copyReportLink() {
+  if (!currentReportId) return;
+  var link = window.location.origin + '/?report=' + currentReportId;
+  navigator.clipboard.writeText(link).then(function() {
+    var t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 2500);
+  }).catch(function() {
+    prompt('Copie o link:', window.location.origin + '/?report=' + currentReportId);
+  });
+}
+
 function setP(pct, msg, sid) {
   document.getElementById('ldFill').style.width = pct + '%';
   if (msg) document.getElementById('ldStatus').textContent = msg;
@@ -481,6 +501,13 @@ function buildReport(r) {
   `;
 
   setTimeout(initScrollSpy, 100);
+
+  // Exibe botao de link se reportId disponivel
+  if (d.reportId) {
+    currentReportId = d.reportId;
+    var btn = document.getElementById('btnLink');
+    if (btn) btn.style.display = 'block';
+  }
 }
 
 async function startAudit() {
@@ -526,6 +553,9 @@ async function startAudit() {
 function resetTool() {
   if (observer) { observer.disconnect(); observer = null; }
   document.getElementById('sr').style.display = 'none';
+  currentReportId = null;
+  var btn = document.getElementById('btnLink');
+  if (btn) btn.style.display = 'none';
   document.getElementById('si').style.display = 'flex';
   document.getElementById('urlInput').value = '';
   document.getElementById('ldFill').style.width = '0%';
@@ -537,12 +567,47 @@ document.getElementById('urlInput').addEventListener('keydown', e => { if(e.key=
 // Auto-inicia se URL passada como parametro: ?url=https://site.com.br
 document.addEventListener('DOMContentLoaded', function() {
   var params = new URLSearchParams(window.location.search);
+
+  // Modo leitura: ?report=abc123
+  var reportParam = params.get('report');
+  if (reportParam) {
+    loadReport(reportParam);
+    return;
+  }
+
+  // Modo auto-audit: ?url=https://site.com.br
   var urlParam = params.get('url');
   if (urlParam) {
     document.getElementById('urlInput').value = urlParam;
     startAudit();
   }
 });
+
+async function loadReport(id) {
+  document.getElementById('si').style.display = 'none';
+  document.getElementById('sl').style.display = 'flex';
+  document.getElementById('ldStatus').textContent = 'Carregando relatório...';
+  document.getElementById('ldFill').style.width = '60%';
+
+  try {
+    var res = await fetch('/api/r?id=' + encodeURIComponent(id));
+    var data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Relatório não encontrado');
+    document.getElementById('ldFill').style.width = '100%';
+    await new Promise(function(r) { setTimeout(r, 300); });
+    document.getElementById('sl').style.display = 'none';
+    document.getElementById('sr').style.display = 'block';
+    buildReport(data.report);
+    // Restaura reportId para permitir re-copiar o link
+    currentReportId = id;
+    var btn = document.getElementById('btnLink');
+    if (btn) btn.style.display = 'block';
+  } catch(err) {
+    document.getElementById('sl').style.display = 'none';
+    document.getElementById('si').style.display = 'flex';
+    document.getElementById('errBox').innerHTML = '<div class="err-box">' + err.message + '</div>';
+  }
+}
 </script>
 </body>
 </html>

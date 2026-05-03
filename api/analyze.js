@@ -1,3 +1,14 @@
+var kv = require('@vercel/kv');
+
+function generateId() {
+  var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  var id = '';
+  for (var i = 0; i < 10; i++) {
+    id += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return id;
+}
+
 async function fetchHTML(url) {
   var lastErr = '';
   var userAgents = [
@@ -225,6 +236,16 @@ module.exports = async function handler(req, res) {
     report.geradoEm = new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric'})
       + ' as ' + new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
     report.dadosTecnicos = seoData;
+    // Salva no KV com TTL de 90 dias
+    var reportId = generateId();
+    try {
+      await kv.set('report:' + reportId, report, { ex: 60 * 60 * 24 * 90 });
+      report.reportId = reportId;
+    } catch(kvErr) {
+      // KV falhou mas nao impede retornar o relatorio
+      console.error('KV save error:', kvErr.message);
+    }
+
     return res.status(200).json({ success: true, report: report });
   } catch(err) {
     return res.status(500).json({ success: false, error: err.message });
