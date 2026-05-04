@@ -250,9 +250,9 @@ module.exports = async function handler(req, res) {
       console.error('KV save error:', kvErr.message);
     }
 
-    // Envia para Make → Google Sheets
+        // Envia para Make → Google Sheets
     try {
-      fetch('https://hook.us2.make.com/6lgcyv51fg2wn66t8b5iiqgsbc875qq3', {
+      await fetch('https://hook.us2.make.com/6lgcyv51fg2wn66t8b5iiqgsbc875qq3', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -264,7 +264,9 @@ module.exports = async function handler(req, res) {
           link: 'https://criamente.vercel.app/?report=' + reportId
         })
       });
-    } catch(makeErr) {}
+    } catch(makeErr) {
+      console.error('Make webhook error:', makeErr.message);
+    }
 
     return res.status(200).json({ success: true, report: report });
   } catch(err) {
