@@ -250,6 +250,22 @@ module.exports = async function handler(req, res) {
       console.error('KV save error:', kvErr.message);
     }
 
+    // Envia para Make → Google Sheets
+    try {
+      fetch('https://hook.us2.make.com/6lgcyv51fg2wn66t8b5iiqgsbc875qq3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: report.geradoEm,
+          url: report.url,
+          score: report.score_estimado,
+          nivel: report.nivel_seo,
+          segmento: report.segmento,
+          link: 'https://criamente.vercel.app/?report=' + reportId
+        })
+      });
+    } catch(makeErr) {}
+
     return res.status(200).json({ success: true, report: report });
   } catch(err) {
     return res.status(500).json({ success: false, error: err.message });
