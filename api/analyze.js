@@ -224,7 +224,7 @@ async function callAI(seoData) {
     + (seoData.robotsTxtData.present ? 'Robots.txt - Bloqueia crawlers de IA: ' + (seoData.robotsTxtData.blocksAI ? 'SIM' : 'nao') + '\n' : '')
     + (seoData.robotsTxtData.blocksSelf ? 'ATENCAO: robots.txt bloqueia todo o site (Disallow: /)\n' : '')
     + 'Viewport: ' + (seoData.viewport ? 'sim' : 'nao') + '\n'
-    + 'Lang: ' + (seoData.lang || 'nao definido') + '\n'
+    + 'Lang: ' + (seoData.lang || 'AUSENTE NO HTML ESTATICO (pode ser injetado via JS por SPAs/Next.js)') + '\n'
     + 'Open Graph: title=' + (seoData.ogTitle ? 'sim' : 'nao') + ', desc=' + (seoData.ogDesc ? 'sim' : 'nao') + ', img=' + (seoData.ogImage ? 'sim' : 'nao') + '\n'
     + 'Twitter Card: ' + (seoData.twitterCard || 'ausente') + '\n'
     + 'JSON-LD: ' + (seoData.hasJsonLd ? 'sim, tipos: ' + seoData.jsonLdTypes.join(', ') : 'AUSENTE') + '\n'
@@ -232,6 +232,7 @@ async function callAI(seoData) {
     + 'Links internos: ' + seoData.internalLinks + '\n'
     + 'Palavras estimadas: ' + seoData.wordCount + '\n'
     + 'Conteudo:\n' + seoData.bodyTextSample + '\n\n'
+    + 'IMPORTANTE: Esta ferramenta analisa o HTML estatico retornado pelo servidor. Sites SPA (React, Next.js, Vue) podem injetar atributos via JavaScript apos o carregamento. Se lang, robots ou outros atributos estiverem ausentes no HTML estatico mas o site for um SPA, indique isso na analise em vez de marcar como erro critico.\n\n'
     + 'IMPORTANTE: Retorne APENAS JSON valido. Todos os valores de string devem estar em uma unica linha, sem quebras de linha dentro das strings. Use ponto e virgula ou virgula para separar frases dentro das strings, nunca caractere de nova linha.\n\n'
     + 'Estrutura obrigatoria:\n'
     + '{"segmento":"string","resumo_executivo":"string sem quebra de linha","nivel_seo":"Critico|Regular|Bom|Excelente","score_estimado":0,'
