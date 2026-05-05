@@ -1,7 +1,8 @@
 {
   "version": 2,
   "functions": {
-    "api/analyze.js": { "maxDuration": 60 },
-    "api/r.js":       { "maxDuration": 10 }
+    "api/analyze.js":    { "maxDuration": 60 },
+    "api/r.js":          { "maxDuration": 10 },
+    "api/audit-full.js": { "maxDuration": 60 }
   }
 }

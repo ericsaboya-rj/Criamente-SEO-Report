@@ -35,6 +35,11 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 .si-btn:hover { opacity: .9; transform: translateY(-1px); }
 .si-note { font-size: 12px; color: var(--text3); text-align: center; }
 .err-box { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 10px; padding: 14px 18px; color: #FCA5A5; font-size: 13px; text-align: center; margin-top: 14px; }
+.mode-toggle { display: flex; gap: 8px; margin-bottom: 10px; }
+.mode-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1.5px solid var(--border2); background: none; cursor: pointer; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700; color: var(--text3); transition: all .2s; }
+.mode-btn.act { border-color: var(--accent); color: var(--accent); background: rgba(37,99,235,.08); }
+.mode-desc { font-size: 12px; color: var(--text3); text-align: center; margin-bottom: 16px; }
+.prog-pages { font-size: 11px; color: var(--text3); margin-top: 8px; }
 
 /* LOADING */
 #sl { display: none; min-height: 100vh; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 40px; }
@@ -244,6 +249,11 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
       <input type="url" id="urlInput" class="si-inp" placeholder="https://seusite.com.br" autocomplete="off">
       <button class="si-btn" onclick="startAudit()">Analisar</button>
     </div>
+    <div class="mode-toggle">
+      <button class="mode-btn act" id="modeQuick" onclick="setMode('quick')">&#x26A1; An&aacute;lise R&aacute;pida</button>
+      <button class="mode-btn" id="modeFull" onclick="setMode('full')">&#x1F50D; Auditoria Completa</button>
+    </div>
+    <div class="mode-desc" id="modeDesc">Uma p&aacute;gina &bull; ~15s &bull; Ideal para prospec&ccedil;&atilde;o</div>
     <p class="si-note">Pressione Enter ou clique em Analisar. Funciona apenas com URLs p&uacute;blicas.</p>
     <div id="errBox"></div>
   </div>
@@ -255,6 +265,7 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
   <h2 class="ld-title">Analisando <em>seu site</em></h2>
   <div id="ldStatus" class="ld-status">Iniciando...</div>
   <div class="ld-bar"><div class="ld-fill" id="ldFill"></div></div>
+  <div class="prog-pages" id="progPages"></div>
   <div class="ld-steps">
     <div class="ld-step" id="st1">&#x2B07; Buscando HTML</div>
     <div class="ld-step" id="st2">&#x1F50D; Extraindo dados</div>
@@ -281,6 +292,16 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 <div class="toast" id="toast">Link copiado!</div>
 <script>
 var currentReportId = null;
+var currentMode = 'quick';
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('modeQuick').classList.toggle('act', mode === 'quick');
+  document.getElementById('modeFull').classList.toggle('act', mode === 'full');
+  document.getElementById('modeDesc').textContent = mode === 'quick'
+    ? 'Uma página • ~15s • Ideal para prospecção'
+    : 'Site inteiro via sitemap • 2-5 min • Relatório completo';
+}
 
 function copyReportLink() {
   if (!currentReportId) return;
@@ -511,42 +532,87 @@ function buildReport(r) {
 }
 
 async function startAudit() {
-  let url = document.getElementById('urlInput').value.trim();
+  var url = document.getElementById('urlInput').value.trim();
   if (!url) return;
   if (!url.startsWith('http')) url = 'https://' + url;
 
   document.getElementById('si').style.display = 'none';
   document.getElementById('sl').style.display = 'flex';
+  document.getElementById('progPages').textContent = '';
 
   try {
-    setP(15, 'Buscando HTML do site...', 'st1');
-    await new Promise(r => setTimeout(r, 400));
-    setP(35, 'Extraindo dados SEO...', 'st2');
-    await new Promise(r => setTimeout(r, 400));
-    setP(55, 'IA analisando conte\u00fado e segmento...', 'st3');
-
-    const res = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    });
-
-    setP(80, 'Gerando relat\u00f3rio estrat\u00e9gico...', 'st4');
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Erro na an\u00e1lise');
-
-    setP(100, 'Conclu\u00eddo!', 'st4');
-    await new Promise(r => setTimeout(r, 400));
-
-    document.getElementById('sl').style.display = 'none';
-    document.getElementById('sr').style.display = 'block';
-    buildReport(data.report);
-
+    if (currentMode === 'full') {
+      await startFullAudit(url);
+    } else {
+      await startQuickAudit(url);
+    }
   } catch(err) {
     document.getElementById('sl').style.display = 'none';
     document.getElementById('si').style.display = 'flex';
-    document.getElementById('errBox').innerHTML = `<div class="err-box">${err.message}</div>`;
-    setTimeout(() => { document.getElementById('errBox').innerHTML = ''; }, 7000);
+    document.getElementById('errBox').innerHTML = '<div class="err-box">' + err.message + '</div>';
+    setTimeout(function() { document.getElementById('errBox').innerHTML = ''; }, 7000);
+  }
+}
+
+async function startQuickAudit(url) {
+  setP(15, 'Buscando HTML do site...', 'st1');
+  await new Promise(function(r) { setTimeout(r, 400); });
+  setP(35, 'Extraindo dados SEO...', 'st2');
+  await new Promise(function(r) { setTimeout(r, 400); });
+  setP(55, 'IA analisando conteúdo e segmento...', 'st3');
+  var res = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: url })
+  });
+  setP(80, 'Gerando relatório estratégico...', 'st4');
+  var data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Erro na análise');
+  setP(100, 'Concluído!', 'st4');
+  await new Promise(function(r) { setTimeout(r, 400); });
+  document.getElementById('sl').style.display = 'none';
+  document.getElementById('sr').style.display = 'block';
+  buildReport(data.report);
+}
+
+async function startFullAudit(url) {
+  setP(5, 'Descobrindo URLs do sitemap...', 'st1');
+  var jobId = null;
+  var offset = 0;
+  var total = 0;
+
+  while (true) {
+    var body = { url: url, offset: offset };
+    if (jobId) body.jobId = jobId;
+
+    var res = await fetch('/api/audit-full', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    var data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Erro na auditoria completa');
+
+    if (data.done) {
+      setP(100, 'Concluído!', 'st4');
+      await new Promise(function(r) { setTimeout(r, 400); });
+      document.getElementById('sl').style.display = 'none';
+      document.getElementById('sr').style.display = 'block';
+      buildReport(data.report);
+      return;
+    }
+
+    jobId  = data.jobId;
+    offset = data.offset;
+    total  = data.total;
+
+    var pct = data.progress || Math.round((data.audited / total) * 100);
+    setP(Math.min(pct, 85),
+      data.audited + ' de ' + total + ' páginas auditadas...',
+      pct < 30 ? 'st1' : pct < 60 ? 'st2' : pct < 85 ? 'st3' : 'st4'
+    );
+    document.getElementById('progPages').textContent = data.audited + ' / ' + total + ' URLs rastreadas';
+    await new Promise(function(r) { setTimeout(r, 500); });
   }
 }
 

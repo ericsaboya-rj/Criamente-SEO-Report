@@ -232,7 +232,7 @@ async function callAI(seoData) {
     + 'Links internos: ' + seoData.internalLinks + '\n'
     + 'Palavras estimadas: ' + seoData.wordCount + '\n'
     + 'Conteudo:\n' + seoData.bodyTextSample + '\n\n'
-    + 'IMPORTANTE: Esta ferramenta analisa o HTML estatico retornado pelo servidor. Sites SPA (React, Next.js, Vue) podem injetar atributos via JavaScript apos o carregamento. Se lang, robots ou outros atributos estiverem ausentes no HTML estatico mas o site for um SPA, indique isso na analise em vez de marcar como erro critico.\n\n'
+    + 'IMPORTANTE: Esta ferramenta analisa APENAS a URL especifica fornecida, nao o site inteiro. Ao avaliar Open Graph, schema, canonical e outros elementos, restrinja o diagnostico a esta pagina especifica. Nao generalize para outras paginas do site. Se a pagina auditada for uma homepage de secao ou listagem, mencione que artigos e paginas internas podem ter configuracoes diferentes. Sites SPA (React, Next.js, Vue) podem injetar atributos via JavaScript apos o carregamento do HTML estatico — se identificar um SPA, mencione essa limitacao em vez de marcar o item como erro critico.\n\n'
     + 'IMPORTANTE: Retorne APENAS JSON valido. Todos os valores de string devem estar em uma unica linha, sem quebras de linha dentro das strings. Use ponto e virgula ou virgula para separar frases dentro das strings, nunca caractere de nova linha.\n\n'
     + 'Estrutura obrigatoria:\n'
     + '{"segmento":"string","resumo_executivo":"string sem quebra de linha","nivel_seo":"Critico|Regular|Bom|Excelente","score_estimado":0,'
