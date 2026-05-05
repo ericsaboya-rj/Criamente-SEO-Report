@@ -1,0 +1,335 @@
+var Redis = require('@upstash/redis').Redis;
+var kv = new Redis({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN
+});
+
+function generateId() {
+  var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  var id = '';
+  for (var i = 0; i < 10; i++) {
+    id += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return id;
+}
+
+async function fetchHTML(url) {
+  var lastErr = '';
+  var userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+    'Mozilla/5.0 (compatible; CriamenteSEOBot/1.0)'
+  ];
+
+  for (var ua of userAgents) {
+    try {
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 28000);
+      var response = await fetch(url, {
+        signal: controller.signal,
+        redirect: 'follow',
+        headers: {
+          'User-Agent': ua,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
+        }
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) { lastErr = 'HTTP ' + response.status; continue; }
+      var text = await response.text();
+      if (text.length < 100) { lastErr = 'Pagina vazia'; continue; }
+      return text;
+    } catch(e) {
+      clearTimeout(timeoutId);
+      lastErr = e.message || String(e);
+      continue;
+    }
+  }
+  throw new Error('Nao foi possivel acessar o site. Erro: ' + lastErr + '. Verifique se a URL e publica e tente novamente.');
+}
+
+function getRootUrl(url) {
+  try {
+    var parsed = new URL(url);
+    // Retorna sempre a raiz do host: protocolo + hostname
+    return parsed.protocol + '//' + parsed.hostname;
+  } catch(e) {
+    return url;
+  }
+}
+
+async function fetchRobotsTxt(url) {
+  try {
+    var rootUrl = getRootUrl(url);
+    var r = await fetch(rootUrl + '/robots.txt', {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CriamenteSEOBot/1.0)' }
+    });
+    if (!r.ok) return null;
+    var text = await r.text();
+    if (text.length < 5) return null;
+    return text;
+  } catch(e) {
+    return null;
+  }
+}
+
+function analyzeRobotsTxt(txt, url) {
+  if (!txt) return { present: false, hasDisallow: false, blocksSelf: false, hasSitemap: false, blocksAI: false, raw: null };
+  var lower = txt.toLowerCase();
+  var lines = txt.split('\n').map(function(l) { return l.trim(); });
+  var disallows = lines.filter(function(l) { return l.toLowerCase().startsWith('disallow:') && l.split(':')[1] && l.split(':')[1].trim() !== ''; });
+  var sitemapLine = lines.filter(function(l) { return l.toLowerCase().startsWith('sitemap:'); });
+  var aiAgents = ['gptbot','chatgpt-user','amazonbot','ai2bot','claudebot','anthropic','perplexitybot','ccbot'];
+  var blocksAI = aiAgents.some(function(a) { return lower.includes(a); });
+  var host = ''; try { host = new URL(url).hostname; } catch(e) {}
+  var blocksSelf = lines.some(function(l) {
+    return l.toLowerCase().startsWith('disallow:') && l.includes('/') && l.split(':')[1] && l.split(':')[1].trim() === '/';
+  });
+  return {
+    present: true,
+    hasDisallow: disallows.length > 0,
+    disallowCount: disallows.length,
+    hasSitemap: sitemapLine.length > 0,
+    sitemaps: sitemapLine.map(function(l) { return l.split(':').slice(1).join(':').trim(); }),
+    blocksAI: blocksAI,
+    blocksSelf: blocksSelf,
+    raw: txt.substring(0, 500)
+  };
+}
+
+function extractSEO(html, url) {
+  var get = function(p) { var m = html.match(p); return m ? (m[1] || '').trim() : null; };
+  var getAll = function(p) { return html.match(new RegExp(p.source, 'gi')) || []; };
+  var title = get(/<title[^>]*>([^<]+)<\/title>/i);
+  var description =
+    get(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{10,})/i) ||
+    get(/<meta[^>]+content=["']([^"']{10,})["'][^>]+name=["']description["']/i);
+  var h1s = getAll(/<h1[^>]*>([^<]+)<\/h1>/i).map(function(h) { return h.replace(/<[^>]+>/g,'').trim(); }).filter(Boolean);
+  var h2s = getAll(/<h2[^>]*>[^<]+<\/h2>/i).map(function(h) { return h.replace(/<[^>]+>/g,'').trim(); }).filter(Boolean);
+  var canonical = get(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i);
+  var robots    = get(/<meta[^>]+name=["']robots["'][^>]+content=["']([^"']+)["']/i);
+  var viewport  = /<meta[^>]+name=["']viewport["']/i.test(html);
+  var lang      = get(/<html[^>]+lang=["']([^"']+)["']/i);
+  var ogTitle   = get(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
+  var ogDesc    = get(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+  var ogImage   = get(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+  var twitterCard = get(/<meta[^>]+name=["']twitter:card["'][^>]+content=["']([^"']+)["']/i);
+  var hasJsonLd = /<script[^>]+type=["']application\/ld\+json["']/i.test(html);
+  var jsonLdTypes = [];
+  (html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || []).forEach(function(s) {
+    try {
+      var d = JSON.parse(s.replace(/<[^>]+>/g,''));
+      if (d['@type']) jsonLdTypes.push(d['@type']);
+      if (d['@graph']) d['@graph'].forEach(function(g) { if (g['@type']) jsonLdTypes.push(g['@type']); });
+    } catch(e) {}
+  });
+  var imgs = html.match(/<img[^>]*>/gi) || [];
+  var imgsNoAlt = imgs.filter(function(i) { return !(/alt=["'][^"']+["']/i.test(i)); }).length;
+  var host = ''; try { host = new URL(url).hostname; } catch(e) {}
+  var allLinks = html.match(/<a[^>]+href=["']([^"']+)["']/gi) || [];
+  var internalLinks = allLinks.filter(function(a) {
+    try { var m = a.match(/href=["']([^"']+)["']/i); return new URL(m ? m[1] : '', url).hostname === host; } catch(e) { return false; }
+  }).length;
+  var bodyText = html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  var wordCount = bodyText.split(' ').filter(function(w) { return w.length > 2; }).length;
+  return {
+    url: url, https: url.startsWith('https://'),
+    title: title, titleLen: title ? title.length : 0,
+    description: description, descLen: description ? description.length : 0,
+    h1s: h1s.slice(0,5), h2s: h2s.slice(0,10), h2Count: h2s.length,
+    canonical: canonical, robots: robots, viewport: viewport, lang: lang,
+    ogTitle: ogTitle, ogDesc: ogDesc, ogImage: ogImage, twitterCard: twitterCard,
+    hasJsonLd: hasJsonLd, jsonLdTypes: jsonLdTypes,
+    imgs: imgs.length, imgsNoAlt: imgsNoAlt, internalLinks: internalLinks, wordCount: wordCount,
+    bodyTextSample: bodyText.substring(0, 3000),
+    robotsMeta: robots
+  };
+}
+
+function repairAndParseJSON(text) {
+  var clean = text.trim();
+
+  // Remove wrapper markdown
+  var mdMatch = clean.match(/```json\s*([\s\S]*?)```/);
+  if (mdMatch) { clean = mdMatch[1].trim(); }
+  else {
+    var mdMatch2 = clean.match(/```\s*([\s\S]*?)```/);
+    if (mdMatch2) { clean = mdMatch2[1].trim(); }
+  }
+
+  var start = clean.indexOf('{');
+  var end = clean.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('Nenhum JSON encontrado. Resposta: ' + text.substring(0, 300));
+  var json = clean.substring(start, end + 1);
+
+  // Tenta direto primeiro
+  try { return JSON.parse(json); } catch(e) {}
+
+  // Reparo nivel 1: normaliza chars invalidos dentro de strings
+  var fixed = '';
+  var inString = false;
+  var escape = false;
+  for (var i = 0; i < json.length; i++) {
+    var ch = json[i];
+    if (escape) { fixed += ch; escape = false; continue; }
+    if (ch === '\\') { fixed += ch; escape = true; continue; }
+    if (ch === '"') { inString = !inString; fixed += ch; continue; }
+    if (inString) {
+      if (ch === '\n' || ch === '\r') { fixed += ' '; continue; }
+      if (ch === '\t') { fixed += ' '; continue; }
+      // Remove outros chars de controle
+      var code = ch.charCodeAt(0);
+      if (code < 32) { continue; }
+    }
+    fixed += ch;
+  }
+
+  try { return JSON.parse(fixed); } catch(e2) {
+    // Reparo nivel 2: remove trailing commas antes de } ou ]
+    var fixed2 = fixed.replace(/,\s*([}\]])/g, '$1');
+    try { return JSON.parse(fixed2); } catch(e3) {
+      throw new Error('JSON invalido: ' + e3.message + ' | Trecho pos 2580: ' + fixed2.substring(2580, 2650));
+    }
+  }
+}
+
+async function callAI(seoData) {
+  var apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY nao configurada nas variaveis do Vercel.');
+
+  var endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+
+  var prompt = 'Voce e um consultor senior de SEO e GEO. Analise os dados do site e gere um relatorio estrategico em portugues do Brasil.\n\n'
+    + 'DADOS DO SITE:\n'
+    + 'URL: ' + seoData.url + '\n'
+    + 'HTTPS: ' + seoData.https + '\n'
+    + 'Title: ' + (seoData.title || 'AUSENTE') + ' (' + seoData.titleLen + ' chars)\n'
+    + 'Meta Description: ' + (seoData.description || 'AUSENTE') + ' (' + seoData.descLen + ' chars)\n'
+    + 'H1s: ' + (seoData.h1s.join(' | ') || 'NENHUM') + '\n'
+    + 'H2s: ' + (seoData.h2s.join(' | ') || 'NENHUM') + '\n'
+    + 'Canonical: ' + (seoData.canonical || 'AUSENTE') + '\n'
+    + 'Robots meta tag: ' + (seoData.robotsMeta || 'nao definido') + '\n'
+    + 'Robots.txt: ' + (seoData.robotsTxtData.present ? 'Presente' : 'AUSENTE') + '\n'
+    + (seoData.robotsTxtData.present ? 'Robots.txt - Disallow rules: ' + seoData.robotsTxtData.disallowCount + '\n' : '')
+    + (seoData.robotsTxtData.present ? 'Robots.txt - Sitemap declarado: ' + (seoData.robotsTxtData.hasSitemap ? seoData.robotsTxtData.sitemaps.join(', ') : 'nao') + '\n' : '')
+    + (seoData.robotsTxtData.present ? 'Robots.txt - Bloqueia crawlers de IA: ' + (seoData.robotsTxtData.blocksAI ? 'SIM' : 'nao') + '\n' : '')
+    + (seoData.robotsTxtData.blocksSelf ? 'ATENCAO: robots.txt bloqueia todo o site (Disallow: /)\n' : '')
+    + 'Viewport: ' + (seoData.viewport ? 'sim' : 'nao') + '\n'
+    + 'Lang: ' + (seoData.lang || 'nao definido') + '\n'
+    + 'Open Graph: title=' + (seoData.ogTitle ? 'sim' : 'nao') + ', desc=' + (seoData.ogDesc ? 'sim' : 'nao') + ', img=' + (seoData.ogImage ? 'sim' : 'nao') + '\n'
+    + 'Twitter Card: ' + (seoData.twitterCard || 'ausente') + '\n'
+    + 'JSON-LD: ' + (seoData.hasJsonLd ? 'sim, tipos: ' + seoData.jsonLdTypes.join(', ') : 'AUSENTE') + '\n'
+    + 'Imagens: ' + seoData.imgs + ' total, ' + seoData.imgsNoAlt + ' sem alt\n'
+    + 'Links internos: ' + seoData.internalLinks + '\n'
+    + 'Palavras estimadas: ' + seoData.wordCount + '\n'
+    + 'Conteudo:\n' + seoData.bodyTextSample + '\n\n'
+    + 'IMPORTANTE: Retorne APENAS JSON valido. Todos os valores de string devem estar em uma unica linha, sem quebras de linha dentro das strings. Use ponto e virgula ou virgula para separar frases dentro das strings, nunca caractere de nova linha.\n\n'
+    + 'Estrutura obrigatoria:\n'
+    + '{"segmento":"string","resumo_executivo":"string sem quebra de linha","nivel_seo":"Critico|Regular|Bom|Excelente","score_estimado":0,'
+    + '"metricas":{"titulo":{"status":"ok|alerta|critico","texto":"string"},"description":{"status":"ok|alerta|critico","texto":"string"},"headings":{"status":"ok|alerta|critico","texto":"string"},"conteudo":{"status":"ok|alerta|critico","texto":"string"},"schema":{"status":"ok|alerta|critico","texto":"string"},"open_graph":{"status":"ok|alerta|critico","texto":"string"},"tecnico":{"status":"ok|alerta|critico","texto":"string"},"geo_ia":{"status":"ok|alerta|critico","texto":"string"}},'
+    + '"acoes":[{"numero":1,"prioridade":"Critico|Alto|Medio","categoria":"string","titulo":"string","problema":"string sem quebra de linha","recomendacao":"string sem quebra de linha","impacto":"string","esforco":"Baixo|Medio|Alto","prazo":"string"}],'
+    + '"oportunidades_keywords":[{"keyword":"string","intencao":"Informacional|Comercial|Transacional|BOFU","potencial":"Alto|Medio|Baixo","pagina_sugerida":"/url/"}],'
+    + '"schema_recomendados":[{"tipo":"string","pagina":"string","impacto":"string","esforco":"Baixo|Medio"}],'
+    + '"concorrentes_organicos":[{"nome":"string","url":"string","angulo":"string"}],'
+    + '"proximo_passo_imediato":"string"}\n\n'
+    + 'Gere 4 a 6 acoes, 6 a 10 keywords, 3 a 6 schemas, 3 a 5 concorrentes.';
+
+  var response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 4000,
+        responseMimeType: 'application/json',
+        thinkingConfig: {
+          thinkingBudget: 0
+        }
+      }
+    })
+  });
+
+  if (!response.ok) {
+    var errText = await response.text();
+    throw new Error('Erro Gemini API: ' + errText.substring(0, 400));
+  }
+
+  var data = await response.json();
+  var parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+  var rawText = '';
+  for (var i = 0; i < parts.length; i++) {
+    if (parts[i].text && !parts[i].thought) rawText += parts[i].text;
+  }
+
+  return repairAndParseJSON(rawText.trim());
+}
+
+module.exports = async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo nao permitido' });
+
+  var body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+  var url = body.url;
+  if (!url) return res.status(400).json({ error: 'URL nao fornecida' });
+
+  var normalizedUrl = url.trim();
+  if (!normalizedUrl.startsWith('http')) normalizedUrl = 'https://' + normalizedUrl;
+
+  try {
+    var html    = await fetchHTML(normalizedUrl);
+    var seoData = extractSEO(html, normalizedUrl);
+
+    // Busca robots.txt na raiz correta do domínio (ignora subdiretórios)
+    var robotsTxt = await fetchRobotsTxt(normalizedUrl);
+    seoData.robotsTxtData = analyzeRobotsTxt(robotsTxt, normalizedUrl);
+
+    var report  = await callAI(seoData);
+    report.url = normalizedUrl;
+    report.geradoEm = new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric'})
+      + ' as ' + new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    report.dadosTecnicos = seoData;
+    report.robotsTxt = seoData.robotsTxtData;
+    // Salva no KV com TTL de 90 dias
+    var reportId = generateId();
+    try {
+      await kv.set('report:' + reportId, report, { ex: 60 * 60 * 24 * 90 });
+      report.reportId = reportId;
+    } catch(kvErr) {
+      // KV falhou mas nao impede retornar o relatorio
+      console.error('KV save error:', kvErr.message);
+    }
+
+    // Envia para Make → Google Sheets
+    try {
+      fetch('https://hook.us2.make.com/6lgcyv51fg2wn66t8b5iiqgsbc875qq3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: report.geradoEm,
+          url: report.url,
+          score: report.score_estimado,
+          nivel: report.nivel_seo,
+          segmento: report.segmento,
+          link: 'https://criamente.vercel.app/?report=' + reportId
+        })
+      });
+    } catch(makeErr) {}
+
+    return res.status(200).json({ success: true, report: report });
+  } catch(err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
