@@ -1,8 +1,34 @@
-var Redis = require('@upstash/redis').Redis;
-var kv = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN
-});
+// Upstash Redis via REST API — sem dependencia de pacote
+var KV = {
+  _url: function() { return process.env.KV_REST_API_URL; },
+  _token: function() { return process.env.KV_REST_API_TOKEN; },
+  get: async function(key) {
+    var r = await fetch(this._url() + '/get/' + encodeURIComponent(key), {
+      headers: { Authorization: 'Bearer ' + this._token() }
+    });
+    var d = await r.json();
+    return d.result || null;
+  },
+  set: async function(key, value, opts) {
+    var body = ['SET', key, typeof value === 'string' ? value : JSON.stringify(value)];
+    if (opts && opts.ex) body.push('EX', opts.ex);
+    var r = await fetch(this._url(), {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + this._token(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return r.json();
+  },
+  del: async function(key) {
+    var r = await fetch(this._url(), {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + this._token(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(['DEL', key])
+    });
+    return r.json();
+  }
+};
+var kv = KV;
 
 // ── HELPERS ──────────────────────────────────────────
 function getRootUrl(url) {
