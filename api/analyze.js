@@ -53,6 +53,56 @@ async function fetchHTML(url) {
   throw new Error('Nao foi possivel acessar o site. Erro: ' + lastErr + '. Verifique se a URL e publica e tente novamente.');
 }
 
+function getRootUrl(url) {
+  try {
+    var parsed = new URL(url);
+    // Retorna sempre a raiz do host: protocolo + hostname
+    return parsed.protocol + '//' + parsed.hostname;
+  } catch(e) {
+    return url;
+  }
+}
+
+async function fetchRobotsTxt(url) {
+  try {
+    var rootUrl = getRootUrl(url);
+    var r = await fetch(rootUrl + '/robots.txt', {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CriamenteSEOBot/1.0)' }
+    });
+    if (!r.ok) return null;
+    var text = await r.text();
+    if (text.length < 5) return null;
+    return text;
+  } catch(e) {
+    return null;
+  }
+}
+
+function analyzeRobotsTxt(txt, url) {
+  if (!txt) return { present: false, hasDisallow: false, blocksSelf: false, hasSitemap: false, blocksAI: false, raw: null };
+  var lower = txt.toLowerCase();
+  var lines = txt.split('\n').map(function(l) { return l.trim(); });
+  var disallows = lines.filter(function(l) { return l.toLowerCase().startsWith('disallow:') && l.split(':')[1] && l.split(':')[1].trim() !== ''; });
+  var sitemapLine = lines.filter(function(l) { return l.toLowerCase().startsWith('sitemap:'); });
+  var aiAgents = ['gptbot','chatgpt-user','amazonbot','ai2bot','claudebot','anthropic','perplexitybot','ccbot'];
+  var blocksAI = aiAgents.some(function(a) { return lower.includes(a); });
+  var host = ''; try { host = new URL(url).hostname; } catch(e) {}
+  var blocksSelf = lines.some(function(l) {
+    return l.toLowerCase().startsWith('disallow:') && l.includes('/') && l.split(':')[1] && l.split(':')[1].trim() === '/';
+  });
+  return {
+    present: true,
+    hasDisallow: disallows.length > 0,
+    disallowCount: disallows.length,
+    hasSitemap: sitemapLine.length > 0,
+    sitemaps: sitemapLine.map(function(l) { return l.split(':').slice(1).join(':').trim(); }),
+    blocksAI: blocksAI,
+    blocksSelf: blocksSelf,
+    raw: txt.substring(0, 500)
+  };
+}
+
 function extractSEO(html, url) {
   var get = function(p) { var m = html.match(p); return m ? (m[1] || '').trim() : null; };
   var getAll = function(p) { return html.match(new RegExp(p.source, 'gi')) || []; };
@@ -100,7 +150,8 @@ function extractSEO(html, url) {
     ogTitle: ogTitle, ogDesc: ogDesc, ogImage: ogImage, twitterCard: twitterCard,
     hasJsonLd: hasJsonLd, jsonLdTypes: jsonLdTypes,
     imgs: imgs.length, imgsNoAlt: imgsNoAlt, internalLinks: internalLinks, wordCount: wordCount,
-    bodyTextSample: bodyText.substring(0, 3000)
+    bodyTextSample: bodyText.substring(0, 3000),
+    robotsMeta: robots
   };
 }
 
@@ -166,7 +217,12 @@ async function callAI(seoData) {
     + 'H1s: ' + (seoData.h1s.join(' | ') || 'NENHUM') + '\n'
     + 'H2s: ' + (seoData.h2s.join(' | ') || 'NENHUM') + '\n'
     + 'Canonical: ' + (seoData.canonical || 'AUSENTE') + '\n'
-    + 'Robots: ' + (seoData.robots || 'nao definido') + '\n'
+    + 'Robots meta tag: ' + (seoData.robotsMeta || 'nao definido') + '\n'
+    + 'Robots.txt: ' + (seoData.robotsTxtData.present ? 'Presente' : 'AUSENTE') + '\n'
+    + (seoData.robotsTxtData.present ? 'Robots.txt - Disallow rules: ' + seoData.robotsTxtData.disallowCount + '\n' : '')
+    + (seoData.robotsTxtData.present ? 'Robots.txt - Sitemap declarado: ' + (seoData.robotsTxtData.hasSitemap ? seoData.robotsTxtData.sitemaps.join(', ') : 'nao') + '\n' : '')
+    + (seoData.robotsTxtData.present ? 'Robots.txt - Bloqueia crawlers de IA: ' + (seoData.robotsTxtData.blocksAI ? 'SIM' : 'nao') + '\n' : '')
+    + (seoData.robotsTxtData.blocksSelf ? 'ATENCAO: robots.txt bloqueia todo o site (Disallow: /)\n' : '')
     + 'Viewport: ' + (seoData.viewport ? 'sim' : 'nao') + '\n'
     + 'Lang: ' + (seoData.lang || 'nao definido') + '\n'
     + 'Open Graph: title=' + (seoData.ogTitle ? 'sim' : 'nao') + ', desc=' + (seoData.ogDesc ? 'sim' : 'nao') + ', img=' + (seoData.ogImage ? 'sim' : 'nao') + '\n'
@@ -235,11 +291,17 @@ module.exports = async function handler(req, res) {
   try {
     var html    = await fetchHTML(normalizedUrl);
     var seoData = extractSEO(html, normalizedUrl);
+
+    // Busca robots.txt na raiz correta do domínio (ignora subdiretórios)
+    var robotsTxt = await fetchRobotsTxt(normalizedUrl);
+    seoData.robotsTxtData = analyzeRobotsTxt(robotsTxt, normalizedUrl);
+
     var report  = await callAI(seoData);
     report.url = normalizedUrl;
     report.geradoEm = new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric'})
       + ' as ' + new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
     report.dadosTecnicos = seoData;
+    report.robotsTxt = seoData.robotsTxtData;
     // Salva no KV com TTL de 90 dias
     var reportId = generateId();
     try {
@@ -250,9 +312,9 @@ module.exports = async function handler(req, res) {
       console.error('KV save error:', kvErr.message);
     }
 
-        // Envia para Make → Google Sheets
+    // Envia para Make → Google Sheets
     try {
-      await fetch('https://hook.us2.make.com/6lgcyv51fg2wn66t8b5iiqgsbc875qq3', {
+      fetch('https://hook.us2.make.com/6lgcyv51fg2wn66t8b5iiqgsbc875qq3', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -264,9 +326,7 @@ module.exports = async function handler(req, res) {
           link: 'https://criamente.vercel.app/?report=' + reportId
         })
       });
-    } catch(makeErr) {
-      console.error('Make webhook error:', makeErr.message);
-    }
+    } catch(makeErr) {}
 
     return res.status(200).json({ success: true, report: report });
   } catch(err) {
