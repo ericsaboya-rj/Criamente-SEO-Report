@@ -198,7 +198,7 @@ async function callAISummary(siteUrl, auditedPages, totalUrls) {
     + 'Paginas sem JSON-LD: ' + noSchema + '/' + ok.length + '\n'
     + 'Paginas sem canonical: ' + noCanon + '/' + ok.length + '\n\n'
     + 'PAGINAS COM PIOR SCORE: ' + worstPages + '\n\n'
-    + 'IMPORTANTE: Analise APENAS os dados fornecidos. Seja especifico. Priorize problemas em escala (que afetam muitas paginas). Nao generalize.\n\n'
+    + 'IMPORTANTE: Analise APENAS os dados fornecidos. Seja especifico. Priorize problemas em escala. Ao avaliar og:image, canonical e schema, considere que paginas de listagem/secao naturalmente podem nao ter og:image — recomende apenas se a ausencia for predominante em paginas de conteudo (artigos, produtos, servicos). Nao generalize um padrao de paginas de secao para o site inteiro.\n\n'
     + 'Retorne APENAS JSON valido:\n'
     + '{"segmento":"string","resumo_executivo":"string","nivel_seo":"Critico|Regular|Bom|Excelente","score_estimado":' + avgScore + ','
     + '"metricas":{"titulo":{"status":"ok|alerta|critico","texto":"string"},"description":{"status":"ok|alerta|critico","texto":"string"},"headings":{"status":"ok|alerta|critico","texto":"string"},"conteudo":{"status":"ok|alerta|critico","texto":"string"},"schema":{"status":"ok|alerta|critico","texto":"string"},"open_graph":{"status":"ok|alerta|critico","texto":"string"},"tecnico":{"status":"ok|alerta|critico","texto":"string"},"geo_ia":{"status":"ok|alerta|critico","texto":"string"}},'
