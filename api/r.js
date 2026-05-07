@@ -41,8 +41,10 @@ module.exports = async function handler(req, res) {
   if (!id) return res.status(400).json({ error: 'ID nao fornecido' });
 
   try {
-    var report = await kv.get('report:' + id);
-    if (!report) return res.status(404).json({ error: 'Relatorio nao encontrado ou expirado' });
+    var raw = await kv.get('report:' + id);
+    if (!raw) return res.status(404).json({ error: 'Relatorio nao encontrado ou expirado' });
+    // Upstash REST retorna string — faz parse se necessario
+    var report = typeof raw === 'string' ? JSON.parse(raw) : raw;
     return res.status(200).json({ success: true, report: report });
   } catch(err) {
     return res.status(500).json({ success: false, error: err.message });
