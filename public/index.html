@@ -175,6 +175,11 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 /* Footer */
 .rpt-footer { text-align: center; padding: 24px; font-size: 11px; color: var(--text3); border-top: 1px solid var(--border); margin-top: 60px; }
 
+/* PageSpeed strategy tabs */
+.ps-strategy-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.ps-tab { padding: 8px 18px; border-radius: 8px; border: 1.5px solid var(--border2); background: none; cursor: pointer; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700; color: var(--text3); transition: all .2s; }
+.ps-tab.act { border-color: var(--accent); color: var(--accent); background: rgba(37,99,235,.08); }
+
 /* PageSpeed section */
 .ps-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
 .ps-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 12px; text-align: center; }
@@ -390,21 +395,40 @@ let observer = null;
 
 function sC(s) { return s >= 80 ? 'sh' : s >= 60 ? 'sw' : 'sl'; }
 
-function renderPageSpeed(ps) {
-  if (!ps) {
-    return '<div class="diag-box" style="border-left-color:var(--text3)"><div class="diag-label" style="color:var(--text3)">Dados indisponíveis</div><div class="diag-text">A API do Google PageSpeed não retornou dados para esta URL. Verifique se o site é público.</div></div>';
-  }
-  var scoreColor = function(s) { return s >= 80 ? 'var(--pass)' : s >= 60 ? 'var(--warn)' : 'var(--fail)'; };
+function renderPageSpeedData(ps) {
+  if (!ps) return '<div style="color:var(--text3);font-size:13px;padding:20px">Dados indispon\u00edveis para esta estrat\u00e9gia.</div>';
   return '<div class="ps-grid">'
-    + ['Performance','Acessibilidade','Boas Práticas','SEO Lighthouse'].map(function(nm, i) {
+    + ['Performance','Acessibilidade','Boas Pr\u00e1ticas','SEO Lighthouse'].map(function(nm, i) {
         var v = [ps.performance, ps.accessibility, ps.bestPractices, ps.seo][i];
-        if (v === undefined) v = ps[[null,'accessibility','bestPractices','seo'][i]];
-        return '<div class="ps-card"><div class="ps-nm">' + nm + '</div><div class="ps-val ' + sC(v||0) + '">' + (v||'-') + '</div></div>';
+        return '<div class="ps-card"><div class="ps-nm">' + nm + '</div><div class="ps-val ' + sC(v != null ? v : 0) + '">' + (v != null ? v : '-') + '</div></div>';
       }).join('')
     + '</div><div class="ps-met-grid">'
     + [['FCP',ps.fcp],['LCP',ps.lcp],['CLS',ps.cls],['TBT',ps.tbt],['Speed Index',ps.si],['TTFB',ps.ttfb]].map(function(m) {
         return '<div class="ps-met"><div class="ps-met-nm">' + m[0] + '</div><div class="ps-met-vl">' + (m[1]||'-') + '</div></div>';
       }).join('')
+    + '</div>';
+}
+
+function renderPageSpeed(ps) {
+  if (!ps) {
+    return '<div class="diag-box" style="border-left-color:var(--text3)"><div class="diag-label" style="color:var(--text3)">Dados indispon\u00edveis</div><div class="diag-text">A API do Google PageSpeed n\u00e3o retornou dados para esta URL.</div></div>';
+  }
+
+  // Suporte ao formato antigo (objeto direto sem mobile/desktop)
+  var mobile  = ps.mobile  || (ps.performance !== undefined ? ps : null);
+  var desktop = ps.desktop || null;
+
+  var id = 'ps-' + Math.random().toString(36).substring(2,7);
+
+  return '<div>'
+    + '<div class="ps-strategy-tabs" id="' + id + '-tabs">'
+    + '<button class="ps-tab act" onclick="switchPS(\'' + id + '\',\'mobile\')">'
+    + '&#x1F4F1; Mobile</button>'
+    + '<button class="ps-tab" onclick="switchPS(\'' + id + '\',\'desktop\')">'
+    + '&#x1F5A5; Desktop</button>'
+    + '</div>'
+    + '<div id="' + id + '-mobile">' + renderPageSpeedData(mobile) + '</div>'
+    + '<div id="' + id + '-desktop" style="display:none">' + renderPageSpeedData(desktop) + '</div>'
     + '</div>';
 }
 
@@ -466,6 +490,14 @@ function renderPageScores(pages) {
           + '</tr>';
       }).join('')
     + '</tbody></table></div>';
+}
+
+function switchPS(id, strategy) {
+  document.querySelectorAll('#' + id + '-tabs .ps-tab').forEach(function(b) { b.classList.remove('act'); });
+  var activeBtn = document.querySelector('#' + id + '-tabs .ps-tab:' + (strategy === 'mobile' ? 'first-child' : 'last-child'));
+  if (activeBtn) activeBtn.classList.add('act');
+  document.getElementById(id + '-mobile').style.display  = strategy === 'mobile'  ? '' : 'none';
+  document.getElementById(id + '-desktop').style.display = strategy === 'desktop' ? '' : 'none';
 }
 
 function buildTabs() {

@@ -93,23 +93,33 @@ async function fetchLlmsTxt(url) {
 
 async function fetchPageSpeed(url) {
   try {
-    var key = process.env.PAGESPEED_API_KEY ? '&key=' + process.env.PAGESPEED_API_KEY : '';
-    var apiUrl = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=' + encodeURIComponent(url) + '&strategy=mobile' + key;
-    var r = await fetch(apiUrl, { signal: AbortSignal.timeout(45000) });
-    if (!r.ok) return null;
-    var d = await r.json();
-    if (!d.lighthouseResult) return null;
-    var cats = d.lighthouseResult.categories || {};
-    var aud  = d.lighthouseResult.audits || {};
-    return {
-      performance:   Math.round((cats.performance   && cats.performance.score   || 0) * 100),
-      accessibility: Math.round((cats.accessibility && cats.accessibility.score || 0) * 100),
-      seo:           Math.round((cats.seo && cats.seo.score || 0) * 100),
-      lcp:  aud['largest-contentful-paint'] && aud['largest-contentful-paint'].displayValue || '-',
-      cls:  aud['cumulative-layout-shift']  && aud['cumulative-layout-shift'].displayValue  || '-',
-      fcp:  aud['first-contentful-paint']   && aud['first-contentful-paint'].displayValue   || '-',
-      ttfb: aud['server-response-time']     && aud['server-response-time'].displayValue     || '-'
-    };
+    function parsePS(d) {
+      if (!d || !d.lighthouseResult) return null;
+      var cats = d.lighthouseResult.categories || {};
+      var aud  = d.lighthouseResult.audits || {};
+      return {
+        performance:   Math.round((cats.performance   && cats.performance.score   || 0) * 100),
+        accessibility: Math.round((cats.accessibility && cats.accessibility.score || 0) * 100),
+        bestPractices: Math.round((cats['best-practices'] && cats['best-practices'].score || 0) * 100),
+        seo:           Math.round((cats.seo && cats.seo.score || 0) * 100),
+        fcp:  aud['first-contentful-paint']   && aud['first-contentful-paint'].displayValue  || '-',
+        lcp:  aud['largest-contentful-paint'] && aud['largest-contentful-paint'].displayValue || '-',
+        cls:  aud['cumulative-layout-shift']  && aud['cumulative-layout-shift'].displayValue  || '-',
+        tbt:  aud['total-blocking-time']      && aud['total-blocking-time'].displayValue      || '-',
+        si:   aud['speed-index']              && aud['speed-index'].displayValue              || '-',
+        ttfb: aud['server-response-time']     && aud['server-response-time'].displayValue     || '-'
+      };
+    }
+    var key  = process.env.PAGESPEED_API_KEY ? '&key=' + process.env.PAGESPEED_API_KEY : '';
+    var base = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=' + encodeURIComponent(url);
+    var psResults = await Promise.all([
+      fetch(base + '&strategy=mobile'  + key, { signal: AbortSignal.timeout(45000) }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
+      fetch(base + '&strategy=desktop' + key, { signal: AbortSignal.timeout(45000) }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+    ]);
+    var mobile  = parsePS(psResults[0]);
+    var desktop = parsePS(psResults[1]);
+    if (!mobile && !desktop) return null;
+    return { mobile: mobile, desktop: desktop };
   } catch(e) { return null; }
 }
 
