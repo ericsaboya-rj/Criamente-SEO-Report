@@ -145,8 +145,9 @@ async function fetchLlmsTxt(url) {
 
 async function fetchPageSpeed(url) {
   try {
+    var key = process.env.PAGESPEED_API_KEY ? '&key=' + process.env.PAGESPEED_API_KEY : '';
     var apiUrl = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url='
-      + encodeURIComponent(url) + '&strategy=mobile';
+      + encodeURIComponent(url) + '&strategy=mobile' + key;
     var r = await fetch(apiUrl, { signal: AbortSignal.timeout(25000) });
     if (!r.ok) return null;
     var d = await r.json();
