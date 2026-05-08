@@ -79,6 +79,95 @@ async function fetchHTML(url) {
   throw new Error('Nao foi possivel acessar o site. Erro: ' + lastErr + '. Verifique se a URL e publica e tente novamente.');
 }
 
+// ── NOVAS VERIFICACOES ─────────────────────────────
+
+function detectEmails(html) {
+  var bodyText = html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g, ' ');
+  var emails = bodyText.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) || [];
+  var filtered = emails.filter(function(e) {
+    return !e.match(/\.(png|jpg|gif|svg|woff|ttf|css|js)$/i) && !e.includes('example') && !e.includes('sentry');
+  });
+  var unique = [];
+  filtered.forEach(function(e) { if (!unique.includes(e)) unique.push(e); });
+  return unique;
+}
+
+function countInlineStyles(html) {
+  return (html.match(/\bstyle\s*=\s*["'][^"']+["']/gi) || []).length;
+}
+
+function detectBlockingScripts(html) {
+  return (html.match(/<script(?![^>]*(?:async|defer|type=["']module["']))[^>]+src=["'][^"']+["'][^>]*>/gi) || []).length;
+}
+
+function detectPixels(html) {
+  var lower = html.toLowerCase();
+  return {
+    fbPixel:  lower.includes('connect.facebook.net') || lower.includes('fbevents'),
+    gtm:      lower.includes('googletagmanager.com'),
+    ga4:      lower.includes('gtag(') || lower.includes('google-analytics'),
+    youtube:  lower.includes('youtube.com/embed'),
+    linkedin: lower.includes('linkedin.com/insight'),
+    hotjar:   lower.includes('hotjar.com') || lower.includes('_hjSettings'),
+    clarity:  lower.includes('clarity.ms')
+  };
+}
+
+function analyzeKeyword(title, h1, desc) {
+  var stopWords = ['para','como','com','que','uma','por','mais','nos','das','dos','seu','sua','nao','mas','sobre','também','quando','onde','este','essa','isso','pelo','pela'];
+  var words = (title||'').toLowerCase().split(/\s+/).filter(function(w) {
+    return w.length > 4 && !stopWords.includes(w);
+  });
+  if (!words.length) return null;
+  var kw = words[0];
+  return {
+    keyword: kw,
+    inTitle: (title||'').toLowerCase().includes(kw),
+    inH1:    (h1||'').toLowerCase().includes(kw),
+    inDesc:  (desc||'').toLowerCase().includes(kw)
+  };
+}
+
+async function fetchLlmsTxt(url) {
+  try {
+    var root = getRootUrl(url);
+    var r = await fetch(root + '/llms.txt', { signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CriamenteSEOBot/1.0)' }
+    });
+    if (!r.ok) return { present: false };
+    var text = await r.text();
+    return text && text.length > 10 ? { present: true, size: text.length, sample: text.substring(0, 200) } : { present: false };
+  } catch(e) { return { present: false }; }
+}
+
+async function fetchPageSpeed(url) {
+  try {
+    var apiUrl = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url='
+      + encodeURIComponent(url) + '&strategy=mobile';
+    var r = await fetch(apiUrl, { signal: AbortSignal.timeout(25000) });
+    if (!r.ok) return null;
+    var d = await r.json();
+    if (!d.lighthouseResult) return null;
+    var cats = d.lighthouseResult.categories || {};
+    var aud  = d.lighthouseResult.audits || {};
+    return {
+      performance:   Math.round((cats.performance   && cats.performance.score   || 0) * 100),
+      accessibility: Math.round((cats.accessibility && cats.accessibility.score || 0) * 100),
+      bestPractices: Math.round((cats['best-practices'] && cats['best-practices'].score || 0) * 100),
+      seo:           Math.round((cats.seo && cats.seo.score || 0) * 100),
+      fcp:  aud['first-contentful-paint']   && aud['first-contentful-paint'].displayValue  || '-',
+      lcp:  aud['largest-contentful-paint'] && aud['largest-contentful-paint'].displayValue || '-',
+      cls:  aud['cumulative-layout-shift']  && aud['cumulative-layout-shift'].displayValue  || '-',
+      tbt:  aud['total-blocking-time']      && aud['total-blocking-time'].displayValue      || '-',
+      si:   aud['speed-index']              && aud['speed-index'].displayValue              || '-',
+      ttfb: aud['server-response-time']     && aud['server-response-time'].displayValue     || '-'
+    };
+  } catch(e) { return null; }
+}
+
 function getRootUrl(url) {
   try {
     var parsed = new URL(url);
@@ -167,9 +256,18 @@ function extractSEO(html, url) {
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
   var wordCount = bodyText.split(' ').filter(function(w) { return w.length > 2; }).length;
+  var emails = detectEmails(html);
+  var inlineStyles = countInlineStyles(html);
+  var blockingScripts = detectBlockingScripts(html);
+  var pixels = detectPixels(html);
+  var keywordAnalysis = analyzeKeyword(title, h1s.length ? h1s[0] : null, description);
+  var titleQuality = title
+    ? (title.length < 30 ? 'curto' : title.length > 65 ? 'longo' : 'ok')
+    : 'ausente';
+
   return {
     url: url, https: url.startsWith('https://'),
-    title: title, titleLen: title ? title.length : 0,
+    title: title, titleLen: title ? title.length : 0, titleQuality: titleQuality,
     description: description, descLen: description ? description.length : 0,
     h1s: h1s.slice(0,5), h2s: h2s.slice(0,10), h2Count: h2s.length,
     canonical: canonical, robots: robots, viewport: viewport, lang: lang,
@@ -177,7 +275,12 @@ function extractSEO(html, url) {
     hasJsonLd: hasJsonLd, jsonLdTypes: jsonLdTypes,
     imgs: imgs.length, imgsNoAlt: imgsNoAlt, internalLinks: internalLinks, wordCount: wordCount,
     bodyTextSample: bodyText.substring(0, 3000),
-    robotsMeta: robots
+    robotsMeta: robots,
+    emails: emails,
+    inlineStyles: inlineStyles,
+    blockingScripts: blockingScripts,
+    pixels: pixels,
+    keywordAnalysis: keywordAnalysis
   };
 }
 
@@ -258,7 +361,15 @@ async function callAI(seoData) {
     + 'Links internos: ' + seoData.internalLinks + '\n'
     + 'Palavras estimadas: ' + seoData.wordCount + '\n'
     + 'Conteudo:\n' + seoData.bodyTextSample + '\n\n'
-    + 'IMPORTANTE: Esta ferramenta analisa APENAS a URL especifica fornecida, nao o site inteiro. Ao avaliar Open Graph, schema, canonical e outros elementos, restrinja o diagnostico a esta pagina especifica. Nao generalize para outras paginas do site. Se a pagina auditada for uma homepage de secao ou listagem, mencione que artigos e paginas internas podem ter configuracoes diferentes. Sites SPA (React, Next.js, Vue) podem injetar atributos via JavaScript apos o carregamento do HTML estatico — se identificar um SPA, mencione essa limitacao em vez de marcar o item como erro critico.\n\n'
+    + 'Emails em texto claro: ' + (seoData.emails && seoData.emails.length ? seoData.emails.join(', ') : 'nenhum') + '\n'
+    + 'Inline styles: ' + (seoData.inlineStyles || 0) + ' ocorrencias\n'
+    + 'Scripts bloqueantes: ' + (seoData.blockingScripts || 0) + '\n'
+    + 'Pixels/Tracking: GTM=' + (seoData.pixels && seoData.pixels.gtm ? 'sim' : 'nao') + ', GA4=' + (seoData.pixels && seoData.pixels.ga4 ? 'sim' : 'nao') + ', Facebook=' + (seoData.pixels && seoData.pixels.fbPixel ? 'sim' : 'nao') + ', Hotjar=' + (seoData.pixels && seoData.pixels.hotjar ? 'sim' : 'nao') + '\n'
+    + 'llms.txt: ' + (seoData.llmsTxt && seoData.llmsTxt.present ? 'PRESENTE (' + seoData.llmsTxt.size + ' bytes)' : 'AUSENTE') + '\n'
+    + 'PageSpeed Mobile: ' + (seoData.pageSpeed ? 'Performance=' + seoData.pageSpeed.performance + ' Acessibilidade=' + seoData.pageSpeed.accessibility + ' SEO=' + seoData.pageSpeed.seo + ' LCP=' + seoData.pageSpeed.lcp + ' CLS=' + seoData.pageSpeed.cls : 'nao disponivel') + '\n'
+    + 'Qualidade do Title: ' + (seoData.titleQuality || 'nao avaliado') + '\n'
+    + 'Keyword principal inferida: ' + (seoData.keywordAnalysis ? seoData.keywordAnalysis.keyword + ' — no title: ' + seoData.keywordAnalysis.inTitle + ', no H1: ' + seoData.keywordAnalysis.inH1 + ', na description: ' + seoData.keywordAnalysis.inDesc : 'nao identificada') + '\n'
+    +     + 'IMPORTANTE: Esta ferramenta analisa APENAS a URL especifica fornecida, nao o site inteiro. Ao avaliar Open Graph, schema, canonical e outros elementos, restrinja o diagnostico a esta pagina especifica. Nao generalize para outras paginas do site. Se a pagina auditada for uma homepage de secao ou listagem, mencione que artigos e paginas internas podem ter configuracoes diferentes. Sites SPA (React, Next.js, Vue) podem injetar atributos via JavaScript apos o carregamento do HTML estatico — se identificar um SPA, mencione essa limitacao em vez de marcar o item como erro critico.\n\n'
     + 'IMPORTANTE: Retorne APENAS JSON valido. Todos os valores de string devem estar em uma unica linha, sem quebras de linha dentro das strings. Use ponto e virgula ou virgula para separar frases dentro das strings, nunca caractere de nova linha.\n\n'
     + 'Estrutura obrigatoria:\n'
     + '{"segmento":"string","resumo_executivo":"string sem quebra de linha","nivel_seo":"Critico|Regular|Bom|Excelente","score_estimado":0,'
@@ -323,12 +434,30 @@ module.exports = async function handler(req, res) {
     var robotsTxt = await fetchRobotsTxt(normalizedUrl);
     seoData.robotsTxtData = analyzeRobotsTxt(robotsTxt, normalizedUrl);
 
+    // llms.txt e PageSpeed em paralelo
+    var extras = await Promise.all([
+      fetchLlmsTxt(normalizedUrl),
+      fetchPageSpeed(normalizedUrl)
+    ]);
+    seoData.llmsTxt    = extras[0];
+    seoData.pageSpeed  = extras[1];
+
     var report  = await callAI(seoData);
     report.url = normalizedUrl;
     report.geradoEm = new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric'})
       + ' as ' + new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
     report.dadosTecnicos = seoData;
-    report.robotsTxt = seoData.robotsTxtData;
+    report.robotsTxt  = seoData.robotsTxtData;
+    report.llmsTxt    = seoData.llmsTxt;
+    report.pageSpeed  = seoData.pageSpeed;
+    report.techChecks = {
+      emails:          seoData.emails,
+      inlineStyles:    seoData.inlineStyles,
+      blockingScripts: seoData.blockingScripts,
+      pixels:          seoData.pixels,
+      keywordAnalysis: seoData.keywordAnalysis,
+      titleQuality:    seoData.titleQuality
+    };
     // Salva no KV com TTL de 90 dias
     var reportId = generateId();
     try {

@@ -67,6 +67,51 @@ async function fetchWithTimeout(url, ms) {
 }
 
 // ── SITEMAP ───────────────────────────────────────────
+
+function detectEmails(html) {
+  var bodyText = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi,'').replace(/<script[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<[^>]+>/g,' ');
+  var emails = bodyText.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) || [];
+  var filtered = emails.filter(function(e) { return !e.match(/\.(png|jpg|gif|svg|woff|css|js)$/i) && !e.includes('example'); });
+  var unique = []; filtered.forEach(function(e) { if (!unique.includes(e)) unique.push(e); });
+  return unique;
+}
+
+function detectPixels(html) {
+  var lower = html.toLowerCase();
+  return { fbPixel: lower.includes('connect.facebook.net'), gtm: lower.includes('googletagmanager.com'), ga4: lower.includes('gtag(') };
+}
+
+async function fetchLlmsTxt(url) {
+  try {
+    var parsed = new URL(url); var root = parsed.protocol + '//' + parsed.hostname;
+    var r = await fetch(root + '/llms.txt', { signal: AbortSignal.timeout(8000), headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) return { present: false };
+    var text = await r.text();
+    return text && text.length > 10 ? { present: true, size: text.length } : { present: false };
+  } catch(e) { return { present: false }; }
+}
+
+async function fetchPageSpeed(url) {
+  try {
+    var apiUrl = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=' + encodeURIComponent(url) + '&strategy=mobile';
+    var r = await fetch(apiUrl, { signal: AbortSignal.timeout(25000) });
+    if (!r.ok) return null;
+    var d = await r.json();
+    if (!d.lighthouseResult) return null;
+    var cats = d.lighthouseResult.categories || {};
+    var aud  = d.lighthouseResult.audits || {};
+    return {
+      performance:   Math.round((cats.performance   && cats.performance.score   || 0) * 100),
+      accessibility: Math.round((cats.accessibility && cats.accessibility.score || 0) * 100),
+      seo:           Math.round((cats.seo && cats.seo.score || 0) * 100),
+      lcp:  aud['largest-contentful-paint'] && aud['largest-contentful-paint'].displayValue || '-',
+      cls:  aud['cumulative-layout-shift']  && aud['cumulative-layout-shift'].displayValue  || '-',
+      fcp:  aud['first-contentful-paint']   && aud['first-contentful-paint'].displayValue   || '-',
+      ttfb: aud['server-response-time']     && aud['server-response-time'].displayValue     || '-'
+    };
+  } catch(e) { return null; }
+}
+
 async function fetchSitemapUrls(siteUrl) {
   var root = getRootUrl(siteUrl);
   var urls = [];
@@ -311,6 +356,11 @@ module.exports = async function handler(req, res) {
       aiReport.modo     = 'completo';
       aiReport.totalUrls     = total;
       aiReport.auditedPages  = allResults;
+      // PageSpeed e llms.txt em paralelo para o site principal
+      var extras = await Promise.all([ fetchPageSpeed(normalizedUrl), fetchLlmsTxt(normalizedUrl) ]);
+
+      aiReport.pageSpeed = extras[0];
+      aiReport.llmsTxt   = extras[1];
       aiReport.dadosTecnicos = {
         url: normalizedUrl, https: normalizedUrl.startsWith('https://'),
         wordCount: 0, imgs: 0, imgsNoAlt: 0, hasJsonLd: false

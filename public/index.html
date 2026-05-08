@@ -175,6 +175,34 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 /* Footer */
 .rpt-footer { text-align: center; padding: 24px; font-size: 11px; color: var(--text3); border-top: 1px solid var(--border); margin-top: 60px; }
 
+/* PageSpeed section */
+.ps-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+.ps-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 12px; text-align: center; }
+.ps-nm { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+.ps-val { font-size: 24px; font-weight: 700; }
+.ps-met-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.ps-met { background: var(--bg3); border-radius: 8px; padding: 12px 8px; text-align: center; border: 1px solid var(--border); }
+.ps-met-nm { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+.ps-met-vl { font-size: 16px; font-weight: 600; }
+
+/* Tech checks */
+.tech-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
+.tech-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.tech-nm { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+.tech-val { font-size: 13px; color: var(--text); }
+
+/* Page score table */
+.page-table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; overflow-x: auto; }
+.page-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.page-table th { text-align: left; font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.page-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+.page-table tr:last-child td { border-bottom: none; }
+.page-table tr:hover td { background: var(--bg3); }
+.score-pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.pill-hi { background: rgba(34,197,94,.15); color: var(--pass); }
+.pill-md { background: rgba(245,158,11,.15); color: var(--warn); }
+.pill-lo { background: rgba(239,68,68,.15); color: var(--fail); }
+
 /* Print */
 @media print {
   @page { size: A4; margin: 12mm 10mm; }
@@ -356,9 +384,89 @@ function highlightKeywords(text) {
 }
 
 // Tabs de navegação com scroll spy via IntersectionObserver
-const SECTION_IDS = ['sec-diagnostico','sec-acoes','sec-keywords','sec-schema','sec-concorrentes'];
-const TAB_LABELS  = ['Diagn\u00f3stico','Plano de A\u00e7\u00e3o','Keywords','Schema & GEO','Concorrentes'];
+const SECTION_IDS = ['sec-diagnostico','sec-performance','sec-tech','sec-acoes','sec-keywords','sec-schema','sec-concorrentes'];
+const TAB_LABELS  = ['Diagn\u00f3stico','Performance','T\u00e9cnico','Plano de A\u00e7\u00e3o','Keywords','Schema & GEO','Concorrentes'];
 let observer = null;
+
+function sC(s) { return s >= 80 ? 'sh' : s >= 60 ? 'sw' : 'sl'; }
+
+function renderPageSpeed(ps) {
+  if (!ps) {
+    return '<div class="diag-box" style="border-left-color:var(--text3)"><div class="diag-label" style="color:var(--text3)">Dados indisponíveis</div><div class="diag-text">A API do Google PageSpeed não retornou dados para esta URL. Verifique se o site é público.</div></div>';
+  }
+  var scoreColor = function(s) { return s >= 80 ? 'var(--pass)' : s >= 60 ? 'var(--warn)' : 'var(--fail)'; };
+  return '<div class="ps-grid">'
+    + ['Performance','Acessibilidade','Boas Práticas','SEO Lighthouse'].map(function(nm, i) {
+        var v = [ps.performance, ps.accessibility, ps.bestPractices, ps.seo][i];
+        if (v === undefined) v = ps[[null,'accessibility','bestPractices','seo'][i]];
+        return '<div class="ps-card"><div class="ps-nm">' + nm + '</div><div class="ps-val ' + sC(v||0) + '">' + (v||'-') + '</div></div>';
+      }).join('')
+    + '</div><div class="ps-met-grid">'
+    + [['FCP',ps.fcp],['LCP',ps.lcp],['CLS',ps.cls],['TBT',ps.tbt],['Speed Index',ps.si],['TTFB',ps.ttfb]].map(function(m) {
+        return '<div class="ps-met"><div class="ps-met-nm">' + m[0] + '</div><div class="ps-met-vl">' + (m[1]||'-') + '</div></div>';
+      }).join('')
+    + '</div>';
+}
+
+function renderTechChecks(r) {
+  var tc = r.techChecks || {};
+  var ll = r.llmsTxt || {};
+  var ps = r.pixels || tc.pixels || {};
+
+  var emailsHtml = tc.emails && tc.emails.length
+    ? '<span style="color:var(--warn)">' + tc.emails.join(', ') + '</span>'
+    : '<span style="color:var(--pass)">Nenhum detectado</span>';
+
+  var pixelItems = [
+    {n:'GTM', v: ps.gtm}, {n:'GA4', v: ps.ga4}, {n:'Facebook Pixel', v: ps.fbPixel},
+    {n:'Hotjar', v: ps.hotjar}, {n:'LinkedIn Insight', v: ps.linkedin}, {n:'Clarity', v: ps.clarity}
+  ].filter(function(p){ return p.v !== undefined; });
+
+  var kwa = tc.keywordAnalysis;
+
+  return '<div class="tech-grid">'
+    + '<div class="tech-card"><div class="tech-nm">Emails em texto claro</div><div class="tech-val">' + emailsHtml + '</div></div>'
+    + '<div class="tech-card"><div class="tech-nm">Inline Styles</div><div class="tech-val">'
+    + (tc.inlineStyles > 20 ? '<span style="color:var(--warn)">' + tc.inlineStyles + ' ocorrências (acima do recomendado)</span>' : '<span style="color:var(--pass)">' + (tc.inlineStyles||0) + ' ocorrências</span>')
+    + '</div></div>'
+    + '<div class="tech-card"><div class="tech-nm">Scripts Bloqueantes</div><div class="tech-val">'
+    + (tc.blockingScripts > 0 ? '<span style="color:var(--warn)">' + tc.blockingScripts + ' script(s) sem async/defer</span>' : '<span style="color:var(--pass)">Nenhum detectado</span>')
+    + '</div></div>'
+    + '<div class="tech-card"><div class="tech-nm">llms.txt (GEO)</div><div class="tech-val">'
+    + (ll.present ? '<span style="color:var(--pass)">Presente (' + ll.size + ' bytes)</span>' : '<span style="color:var(--warn)">Ausente — recomendado para GEO</span>')
+    + '</div></div>'
+    + '<div class="tech-card"><div class="tech-nm">Pixels e Tracking</div><div class="tech-val">'
+    + (pixelItems.length ? pixelItems.map(function(p){ return '<span style="color:' + (p.v ? 'var(--pass)':'var(--text3)') + '">' + p.n + ': ' + (p.v?'✓':'✗') + '</span>'; }).join(' · ') : '<span style="color:var(--text2)">GTM: ' + (ps.gtm?'✓':'✗') + ' · GA4: ' + (ps.ga4?'✓':'✗') + ' · FB: ' + (ps.fbPixel?'✓':'✗') + '</span>')
+    + '</div></div>'
+    + '<div class="tech-card"><div class="tech-nm">Keyword Principal</div><div class="tech-val">'
+    + (kwa ? '<strong>' + escHtml(kwa.keyword) + '</strong> — title: ' + (kwa.inTitle?'✓':'✗') + ' · H1: ' + (kwa.inH1?'✓':'✗') + ' · desc: ' + (kwa.inDesc?'✓':'✗')
+           : '<span style="color:var(--text2)">Não identificada</span>')
+    + '</div></div>'
+    + '</div>';
+}
+
+function renderPageScores(pages) {
+  if (!pages || !pages.length) return '';
+  var sorted = pages.slice().sort(function(a,b){ return (a.score||0)-(b.score||0); });
+  return '<div class="page-table-wrap"><table class="page-table">'
+    + '<thead><tr><th>URL</th><th>Score</th><th>Title</th><th>H1</th><th>Canonical</th><th>OG Image</th><th>JSON-LD</th></tr></thead>'
+    + '<tbody>'
+    + sorted.map(function(p) {
+        var sc = p.score || 0;
+        var pill = sc >= 80 ? 'pill-hi' : sc >= 60 ? 'pill-md' : 'pill-lo';
+        var urlShort = p.url.replace(/^https?:\/\/[^/]+/,'').substring(0,50) || '/';
+        return '<tr>'
+          + '<td style="font-family:monospace;font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(p.url) + '">' + escHtml(urlShort) + '</td>'
+          + '<td><span class="score-pill ' + pill + '">' + sc + '</span></td>'
+          + '<td>' + (p.title ? '✓' : '<span style="color:var(--fail)">✗</span>') + '</td>'
+          + '<td>' + (p.h1    ? '✓' : '<span style="color:var(--fail)">✗</span>') + '</td>'
+          + '<td>' + (p.canonical ? '✓' : '<span style="color:var(--warn)">–</span>') + '</td>'
+          + '<td>' + (p.hasOgImage ? '✓' : '<span style="color:var(--warn)">–</span>') + '</td>'
+          + '<td>' + (p.hasJsonLd  ? '✓' : '<span style="color:var(--warn)">–</span>') + '</td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody></table></div>';
+}
 
 function buildTabs() {
   document.getElementById('rptTabs').innerHTML = TAB_LABELS.map((t,i) =>
@@ -478,6 +586,24 @@ function buildReport(r) {
       </div>
     </section>
 
+    <!-- PAGESPEED SECTION -->
+    <section class="rpt-section" id="sec-performance">
+      <div class="sec-header">
+        <h2>Performance & <em>PageSpeed</em></h2>
+        <p>Dados do Google PageSpeed Insights (mobile). Velocidade é fator de ranqueamento oficial.</p>
+      </div>
+      <div id="psContent"></div>
+    </section>
+
+    <!-- TECH CHECKS SECTION -->
+    <section class="rpt-section" id="sec-tech">
+      <div class="sec-header">
+        <h2>Verificações <em>Técnicas</em></h2>
+        <p>Higiene de código, emails expostos, rastreamento e presença nos sistemas de IA.</p>
+      </div>
+      <div id="techContent"></div>
+    </section>
+
     <section class="rpt-section" id="sec-acoes">
       <div class="sec-header">
         <h2>Plano de <em>A&ccedil;&atilde;o</em></h2>
@@ -520,6 +646,24 @@ function buildReport(r) {
       <div class="comp-grid">${compHtml}</div>
     </section>
   `;
+
+  // Popula PageSpeed
+  var psEl = document.getElementById('psContent');
+  if (psEl) psEl.innerHTML = renderPageSpeed(d.pageSpeed || d.dadosTecnicos && d.dadosTecnicos.pageSpeed);
+
+  // Popula Tech Checks
+  var tcEl = document.getElementById('techContent');
+  if (tcEl) tcEl.innerHTML = renderTechChecks(d);
+
+  // Tabela de scores por página (modo completo)
+  var scEl = document.getElementById('sec-concorrentes');
+  if (scEl && d.auditedPages && d.auditedPages.length) {
+    var pagesSection = document.createElement('section');
+    pagesSection.className = 'rpt-section';
+    pagesSection.id = 'sec-pages';
+    pagesSection.innerHTML = '<div class="sec-header"><h2>Score por <em>P\u00e1gina</em></h2><p>' + d.auditedPages.length + ' p\u00e1ginas auditadas, ordenadas do pior para o melhor score.</p></div>' + renderPageScores(d.auditedPages);
+    scEl.parentNode.insertBefore(pagesSection, scEl);
+  }
 
   setTimeout(initScrollSpy, 100);
 
