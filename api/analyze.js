@@ -151,10 +151,10 @@ async function fetchPageSpeed(url) {
       var cats = d.lighthouseResult.categories || {};
       var aud  = d.lighthouseResult.audits || {};
       return {
-        performance:   Math.round((cats.performance   && cats.performance.score   || 0) * 100),
-        accessibility: Math.round((cats.accessibility && cats.accessibility.score || 0) * 100),
-        bestPractices: Math.round((cats['best-practices'] && cats['best-practices'].score || 0) * 100),
-        seo:           Math.round((cats.seo && cats.seo.score || 0) * 100),
+        performance:   Math.round(((cats.performance   || {}).score || 0) * 100),
+        accessibility: Math.round(((cats.accessibility || {}).score || 0) * 100),
+        bestPractices: Math.round(((cats['best-practices'] || {}).score || 0) * 100),
+        seo:           Math.round(((cats.seo || {}).score || 0) * 100),
         fcp:  aud['first-contentful-paint']   && aud['first-contentful-paint'].displayValue  || '-',
         lcp:  aud['largest-contentful-paint'] && aud['largest-contentful-paint'].displayValue || '-',
         cls:  aud['cumulative-layout-shift']  && aud['cumulative-layout-shift'].displayValue  || '-',
@@ -374,7 +374,7 @@ async function callAI(seoData) {
     + 'Scripts bloqueantes: ' + (seoData.blockingScripts || 0) + '\n'
     + 'Pixels/Tracking: GTM=' + (seoData.pixels && seoData.pixels.gtm ? 'sim' : 'nao') + ', GA4=' + (seoData.pixels && seoData.pixels.ga4 ? 'sim' : 'nao') + ', Facebook=' + (seoData.pixels && seoData.pixels.fbPixel ? 'sim' : 'nao') + ', Hotjar=' + (seoData.pixels && seoData.pixels.hotjar ? 'sim' : 'nao') + '\n'
     + 'llms.txt: ' + (seoData.llmsTxt && seoData.llmsTxt.present ? 'PRESENTE (' + seoData.llmsTxt.size + ' bytes)' : 'AUSENTE') + '\n'
-    + 'PageSpeed Mobile: ' + (seoData.pageSpeed ? 'Performance=' + seoData.pageSpeed.performance + ' Acessibilidade=' + seoData.pageSpeed.accessibility + ' SEO=' + seoData.pageSpeed.seo + ' LCP=' + seoData.pageSpeed.lcp + ' CLS=' + seoData.pageSpeed.cls : 'nao disponivel') + '\n'
+    + 'PageSpeed Mobile: ' + (seoData.pageSpeed && seoData.pageSpeed.mobile ? 'Performance=' + seoData.pageSpeed.mobile.performance + ' Acessibilidade=' + seoData.pageSpeed.mobile.accessibility + ' BPraticas=' + seoData.pageSpeed.mobile.bestPractices + ' SEO=' + seoData.pageSpeed.mobile.seo + ' LCP=' + seoData.pageSpeed.mobile.lcp + ' CLS=' + seoData.pageSpeed.mobile.cls : 'nao disponivel') + '\n'
     + 'Qualidade do Title: ' + (seoData.titleQuality || 'nao avaliado') + '\n'
     + 'Keyword principal inferida: ' + (seoData.keywordAnalysis ? seoData.keywordAnalysis.keyword + ' — no title: ' + seoData.keywordAnalysis.inTitle + ', no H1: ' + seoData.keywordAnalysis.inH1 + ', na description: ' + seoData.keywordAnalysis.inDesc : 'nao identificada') + '\n'
     +     + 'IMPORTANTE: Esta ferramenta analisa APENAS a URL especifica fornecida, nao o site inteiro. Ao avaliar Open Graph, schema, canonical e outros elementos, restrinja o diagnostico a esta pagina especifica. Nao generalize para outras paginas do site. Se a pagina auditada for uma homepage de secao ou listagem, mencione que artigos e paginas internas podem ter configuracoes diferentes. Sites SPA (React, Next.js, Vue) podem injetar atributos via JavaScript apos o carregamento do HTML estatico — se identificar um SPA, mencione essa limitacao em vez de marcar o item como erro critico.\n\n'

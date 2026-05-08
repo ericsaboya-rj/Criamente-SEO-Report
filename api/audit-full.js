@@ -98,10 +98,10 @@ async function fetchPageSpeed(url) {
       var cats = d.lighthouseResult.categories || {};
       var aud  = d.lighthouseResult.audits || {};
       return {
-        performance:   Math.round((cats.performance   && cats.performance.score   || 0) * 100),
-        accessibility: Math.round((cats.accessibility && cats.accessibility.score || 0) * 100),
-        bestPractices: Math.round((cats['best-practices'] && cats['best-practices'].score || 0) * 100),
-        seo:           Math.round((cats.seo && cats.seo.score || 0) * 100),
+        performance:   Math.round(((cats.performance   || {}).score || 0) * 100),
+        accessibility: Math.round(((cats.accessibility || {}).score || 0) * 100),
+        bestPractices: Math.round(((cats['best-practices'] || {}).score || 0) * 100),
+        seo:           Math.round(((cats.seo || {}).score || 0) * 100),
         fcp:  aud['first-contentful-paint']   && aud['first-contentful-paint'].displayValue  || '-',
         lcp:  aud['largest-contentful-paint'] && aud['largest-contentful-paint'].displayValue || '-',
         cls:  aud['cumulative-layout-shift']  && aud['cumulative-layout-shift'].displayValue  || '-',
