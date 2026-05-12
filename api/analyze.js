@@ -492,6 +492,19 @@ module.exports = async function handler(req, res) {
       });
     } catch(makeErr) {}
 
+    // Modo summary — retorno condensado para chatbots
+    if (body.mode === 'summary') {
+      var top3 = (report.acoes || []).slice(0,3).map(function(a) { return a.titulo; });
+      return res.status(200).json({
+        success: true,
+        resumo:  report.resumo_executivo,
+        nivel:   report.nivel_seo,
+        score:   report.score_estimado,
+        top3_acoes: top3,
+        link: 'https://criamente.vercel.app/?report=' + (report.reportId || '')
+      });
+    }
+
     return res.status(200).json({ success: true, report: report });
   } catch(err) {
     return res.status(500).json({ success: false, error: err.message });
