@@ -113,8 +113,8 @@ async function fetchPageSpeed(url) {
     var key  = process.env.PAGESPEED_API_KEY ? '&key=' + process.env.PAGESPEED_API_KEY : '';
     var base = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=' + encodeURIComponent(url);
     var psResults = await Promise.all([
-      fetch(base + '&strategy=mobile'  + key, { signal: AbortSignal.timeout(45000) }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
-      fetch(base + '&strategy=desktop' + key, { signal: AbortSignal.timeout(45000) }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      fetch(base + '&strategy=mobile'  + key, { signal: AbortSignal.timeout(20000) }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
+      fetch(base + '&strategy=desktop' + key, { signal: AbortSignal.timeout(20000) }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
     ]);
     var mobile  = parsePS(psResults[0]);
     var desktop = parsePS(psResults[1]);
@@ -359,7 +359,14 @@ module.exports = async function handler(req, res) {
 
     // Último lote: gera análise da IA e salva relatório final
     if (isDone) {
-      var aiReport = await callAISummary(normalizedUrl, allResults, total);
+      var parallelFull = await Promise.all([
+        callAISummary(normalizedUrl, allResults, total),
+        fetchPageSpeed(normalizedUrl),
+        fetchLlmsTxt(normalizedUrl)
+      ]);
+      var aiReport  = parallelFull[0];
+      var psResult  = parallelFull[1];
+      var llmsResult = parallelFull[2];
       var now = new Date();
       aiReport.url      = normalizedUrl;
       aiReport.geradoEm = now.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})
@@ -368,10 +375,9 @@ module.exports = async function handler(req, res) {
       aiReport.totalUrls     = total;
       aiReport.auditedPages  = allResults;
       // PageSpeed e llms.txt em paralelo para o site principal
-      var extras = await Promise.all([ fetchPageSpeed(normalizedUrl), fetchLlmsTxt(normalizedUrl) ]);
-
-      aiReport.pageSpeed = extras[0];
-      aiReport.llmsTxt   = extras[1];
+      // PageSpeed ja foi disparado em paralelo com Gemini acima
+      aiReport.pageSpeed = psResult;
+      aiReport.llmsTxt   = llmsResult;
       aiReport.dadosTecnicos = {
         url: normalizedUrl, https: normalizedUrl.startsWith('https://'),
         wordCount: 0, imgs: 0, imgsNoAlt: 0, hasJsonLd: false
