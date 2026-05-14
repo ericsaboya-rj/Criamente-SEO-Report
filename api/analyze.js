@@ -124,8 +124,8 @@ async function fetchPageSpeed(url) {
     var key  = process.env.PAGESPEED_API_KEY ? '&key=' + process.env.PAGESPEED_API_KEY : '';
     var base = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=' + encodeURIComponent(url);
     var psResults = await Promise.all([
-      fetch(base + '&strategy=mobile'  + key, { signal: AbortSignal.timeout(45000) }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
-      fetch(base + '&strategy=desktop' + key, { signal: AbortSignal.timeout(45000) }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      fetch(base + '&strategy=mobile'  + key, { signal: AbortSignal.timeout(20000) }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
+      fetch(base + '&strategy=desktop' + key, { signal: AbortSignal.timeout(20000) }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
     ]);
     var mobile  = parsePS(psResults[0]);
     var desktop = parsePS(psResults[1]);
@@ -343,14 +343,18 @@ module.exports = async function handler(req, res) {
     var html    = await fetchHTML(normalizedUrl);
     var seoData = extractSEO(html, normalizedUrl);
 
+    // Roda extras em paralelo com callAI para economizar tempo
     var robotsTxt = await fetchRobotsTxt(normalizedUrl);
     seoData.robotsTxtData = analyzeRobotsTxt(robotsTxt, normalizedUrl);
 
-    var extras = await Promise.all([ fetchLlmsTxt(normalizedUrl), fetchPageSpeed(normalizedUrl) ]);
-    seoData.llmsTxt   = extras[0];
-    seoData.pageSpeed = extras[1];
-
-    var report = await callAI(seoData);
+    var parallelResults = await Promise.all([
+      fetchLlmsTxt(normalizedUrl),
+      fetchPageSpeed(normalizedUrl),
+      callAI(seoData)
+    ]);
+    seoData.llmsTxt   = parallelResults[0];
+    seoData.pageSpeed = parallelResults[1];
+    var report = parallelResults[2];
     report.url = normalizedUrl;
     report.geradoEm = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})
       + ' as ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
